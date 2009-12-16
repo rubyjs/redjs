@@ -1,5 +1,4 @@
 
-
 describe "Basic Evaluation" do
   it "can evaluate some javascript" do
     Context.open do |cxt|
@@ -7,19 +6,73 @@ describe "Basic Evaluation" do
     end
   end
   
+  it "can pass back null to ruby" do
+    Context.open do |cxt|
+      cxt.eval("null").should be_nil      
+    end
+  end
+  
+  it "can pass back undefined to ruby" do
+    Context.open do |cxt|
+      cxt.eval("this.undefined").should be_nil
+    end
+  end
+  
+  it "can pass the empty string back to ruby" do
+    eval("''").should == ""
+  end
+  
+  it "can pass doubles back to ruby" do
+    eval("2.5").should == 2.5
+  end
+  
+  it "can pass fixed numbers back to ruby" do
+    eval("1").should == 1
+  end
+  
+  it "can pass boolean values back to ruby" do
+    eval("true").should be(true)
+    eval("false").should be(false)
+  end  
+  
   it "treats nil and the empty string as the same thing when it comes to eval" do
     Context.open do |cxt|
       cxt.eval(nil).should == cxt.eval('')
     end
   end
   
-  it "can embed primitive ruby object into javascript" do
+  it "can pass back strings to ruby" do
     Context.open do |cxt|
       cxt['foo'] = "Hello World"
       cxt.eval("foo").should == "Hello World"
     end
   end
 
+  it "can pass back very long strings to ruby" do
+    lorem = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis faucibus, diam vel pellentesque aliquet, nisl sapien molestie eros, vitae vehicula libero massa vel neque. Phasellus tempor pharetra ipsum vel venenatis. Quisque vitae nisl vitae quam mattis pellentesque et in sapien. Sed at lectus quis eros pharetra feugiat non ac neque. Vivamus lacus eros, feugiat at volutpat at, viverra id nisl. Vivamus ac dolor eleifend libero venenatis pharetra ut iaculis arcu. Donec neque nibh, vehicula non porta a, consectetur eu erat. Sed eleifend, metus vel euismod placerat, lectus lectus sollicitudin nisl, ac elementum sem quam nec dolor. In hac habitasse platea dictumst. Proin vitae suscipit orci. Suspendisse a ipsum vel lorem tempus scelerisque et vitae neque. Proin sodales, tellus sit amet consequat cursus, odio massa ultricies enim, eu fermentum velit lectus in lacus. Quisque eu porttitor diam. Nunc felis purus, facilisis non tristique ac, pulvinar nec nulla. Duis dolor risus, egestas nec tristique ac, ullamcorper cras amet."
+    Context.open do |cxt|
+      cxt.eval("'#{lorem}'").should == lorem
+    end
+  end
+  
+  it "can pass objects back to ruby" do
+    Context.open do |cxt|      
+      cxt.eval("({foo: 'bar', baz: 'bang', '5': 5, embedded: {}})").tap do |object|
+        object.should_not be_nil        
+        object['foo'].should == 'bar'
+        object['baz'].should == 'bang'
+        object['5'].should == 5
+        object['embedded'].should_not be_nil
+      end
+    end
+  end
+  
+  it "unwraps ruby objects returned by embedded ruby code to maintain referential integrity" do
+    mock(:object).tap do |o|
+      eval('get()', :get => lambda {o}).should be(o)
+    end
+  end
+  
 
   it "won't let you do some operations unless the context is open" do
     Context.new.tap do |closed|
@@ -49,6 +102,22 @@ describe "Calling Ruby Code From Within Javascript" do
       end
     end
     evaljs('o.say_hello("Gracie")').should == "Hello Gracie!"
+  end
+  
+  it "can call a bound ruby method" do
+    five = class_eval do
+      def initialize(lhs)
+        @lhs = lhs
+      end
+      def times(rhs)
+        @lhs * rhs
+      end
+      new(5)
+    end
+    Context.open do |cxt|
+      cxt['timesfive'] = five.method(:times)
+      cxt.eval('timesfive(3)').should == 15
+    end          
   end
   
   it "can call public locally defined ruby methods" do
@@ -153,6 +222,22 @@ describe "Setting up the Host Environment" do
       cxt.eval("this").should be(scope)
     end    
   end
+  
+  it "can directly embed ruby values into javascript" do
+    Context.open do |cxt|
+      cxt["bar"] = 9
+      cxt['foo'] = "bar"
+      cxt['num'] = 3.14
+      cxt['trU'] = true
+      cxt['falls'] = false
+      cxt.eval("bar + 10").should be(19)
+      cxt.eval('foo').should == "bar"
+      cxt.eval('num').should == 3.14
+      cxt.eval('trU').should be(true)
+      cxt.eval('falls').should be(false)      
+    end
+  end
+  
   
   it "extends object to allow for the arbitrary execution of javascript with any object as the scope" do
     Class.new.class_eval do
@@ -268,6 +353,5 @@ EOJS
   it "is enumenable" do
     evaljs("o.foo = 'bar'; o.bang = 'baz'; o[5] = 'flip'")
     @o.inject({}) {|i,p| k,v = p; i.tap {i[k] = v}}.should == {"foo" => 'bar', "bang" => 'baz', 5 => 'flip'}    
-  end
-  
+  end  
 end
