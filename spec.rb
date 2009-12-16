@@ -1,3 +1,4 @@
+require "#{File.dirname(__FILE__)}/../redjs_helper.rb"
 
 describe "Basic Evaluation" do
   it "can evaluate some javascript" do
