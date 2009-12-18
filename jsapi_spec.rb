@@ -60,24 +60,31 @@ describe "Ruby Javascript API" do
   
     it "can pass objects back to ruby" do
       Context.open do |cxt|      
-        cxt.eval("({foo: 'bar', baz: 'bang', '5': 5, embedded: {}})").tap do |object|
+        cxt.eval("({foo: 'bar', baz: 'bang', '5': 5, embedded: {badda: 'bing'}})").tap do |object|
           object.should_not be_nil        
           object['foo'].should == 'bar'
           object['baz'].should == 'bang'
           object['5'].should == 5
-          object['embedded'].should_not be_nil
+          object['embedded'].tap do |embedded|  
+            embedded.should_not be_nil
+            embedded['badda'].should == 'bing'
+          end
         end
       end
     end
   
     it "unwraps ruby objects returned by embedded ruby code to maintain referential integrity" do
+      pending
       mock(:object).tap do |o|
-        eval('get()', :get => lambda {o}).should be(o)
+        Context.open do |cxt|
+          cxt['get'] = lambda {o}
+          cxt.eval('get()').should be(o)
+        end
       end
-    end
-  
+    end  
 
     it "won't let you do some operations unless the context is open" do
+      pending "I'm not sure about this requirement"
       Context.new.tap do |closed|
         lambda {closed.eval('1')}.should raise_error(ContextError)    
       end
@@ -182,14 +189,11 @@ describe "Ruby Javascript API" do
         cxt.eval("o.bar").should_not be_nil
         cxt.eval("o.bar()").should == "baz!"
       end
-    end
-  
-  
+    end 
   
     it "treats ruby methods that have an arity of 0 as javascript properties by default"
   
     it "will call ruby accesssor function when setting a property from javascript"  
-  
   
     def evaljs(str)
       Context.open do |cxt|
@@ -359,4 +363,13 @@ EOJS
     end  
 end
 
+  describe "Exception Handling" do
+    it "raises javascript exceptions as ruby exceptions" do
+      lambda {
+        Context.open do |cxt|
+          cxt.eval('foo')
+        end
+      }.should raise_error(JavascriptError)
+    end
+  end
 end
