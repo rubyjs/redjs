@@ -72,14 +72,7 @@ describe "Ruby Javascript API" do
           cxt.eval('get()').should be(o)
         end
       end
-    end  
-
-    it "won't let you do some operations unless the context is open" do
-      Context.new.tap do |closed|
-        lambda {closed['foo'] = Object.new}.should raise_error(ContextError)
-        lambda {closed['bar']}.should raise_error(ContextError)
-      end
-    end  
+    end   
   end
 
   describe "Calling Ruby Code From Within Javascript" do
@@ -314,21 +307,17 @@ describe "Ruby Javascript API" do
     end
   
     it "can have its properties manipulated via ruby style [] hash access" do
-      @cxt.open do
-        @o["foo"] = 'bar'
-        evaljs('o.foo').should == "bar"
-        evaljs('o.blue = "blam"')
-        @o["blue"].should == "blam"
-      end
+      @o["foo"] = 'bar'
+      evaljs('o.foo').should == "bar"
+      evaljs('o.blue = "blam"')
+      @o["blue"].should == "blam"
     end
   
     it "doesn't matter if you use a symbol or a string to set a value" do
-      @cxt.open do
-        @o[:foo] = "bar"
-        @o['foo'].should == "bar"
-        @o['baz'] = "bang"
-        @o[:baz].should == "bang"
-      end
+      @o[:foo] = "bar"
+      @o['foo'].should == "bar"
+      @o['baz'] = "bang"
+      @o[:baz].should == "bang"
     end
   
     it "returns nil when the value is null, null, or not defined" do
