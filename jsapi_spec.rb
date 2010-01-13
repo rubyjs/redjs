@@ -4,44 +4,36 @@ describe "Ruby Javascript API" do
 
   describe "Basic Evaluation" do
     it "can evaluate some javascript" do
-      Context.open do |cxt|
-        cxt.eval("5 + 3").should == 8
-      end
+      Context.eval("5 + 3")
     end
   
     it "can pass back null to ruby" do
-      Context.open do |cxt|
-        cxt.eval("null").should be_nil      
-      end
+      Context.eval("null").should be_nil      
     end
   
     it "can pass back undefined to ruby" do
-      Context.open do |cxt|
-        cxt.eval("this.undefined").should be_nil
-      end
+      Context.eval("this.undefined").should be_nil
     end
   
     it "can pass the empty string back to ruby" do
-      eval("''").should == ""
+      Context.eval("''").should == ""
     end
   
     it "can pass doubles back to ruby" do
-      eval("2.5").should == 2.5
+      Context.eval("2.5").should == 2.5
     end
   
     it "can pass fixed numbers back to ruby" do
-      eval("1").should == 1
+      Context.eval("1").should == 1
     end
   
     it "can pass boolean values back to ruby" do
-      eval("true").should be(true)
-      eval("false").should be(false)
+      Context.eval("true").should be(true)
+      Context.eval("false").should be(false)
     end  
   
     it "treats nil and the empty string as the same thing when it comes to eval" do
-      Context.open do |cxt|
-        cxt.eval(nil).should == cxt.eval('')
-      end
+      Context.eval(nil).should == Context.eval('')
     end
   
     it "can pass back strings to ruby" do
@@ -74,8 +66,7 @@ describe "Ruby Javascript API" do
     end
   
     it "unwraps ruby objects returned by embedded ruby code to maintain referential integrity" do
-      pending
-      mock(:object).tap do |o|
+      Object.new.tap do |o|
         Context.open do |cxt|
           cxt['get'] = lambda {o}
           cxt.eval('get()').should be(o)
@@ -84,9 +75,9 @@ describe "Ruby Javascript API" do
     end  
 
     it "won't let you do some operations unless the context is open" do
-      pending "I'm not sure about this requirement"
       Context.new.tap do |closed|
-        lambda {closed.eval('1')}.should raise_error(ContextError)    
+        lambda {closed['foo'] = Object.new}.should raise_error(ContextError)
+        lambda {closed['bar']}.should raise_error(ContextError)
       end
     end  
   end
@@ -222,7 +213,7 @@ describe "Ruby Javascript API" do
       
         new
       end
-    
+
       Context.open(:with => scope) do |cxt|
         cxt.eval("plus(1,2)").should == 3
         cxt.eval("minus(10, 20)").should == -10
@@ -244,8 +235,7 @@ describe "Ruby Javascript API" do
         cxt.eval('falls').should be(false)      
       end
     end
-  
-  
+    
     it "extends object to allow for the arbitrary execution of javascript with any object as the scope" do
       Class.new.class_eval do
       
@@ -269,14 +259,8 @@ describe "Ruby Javascript API" do
             cxt.eval('while (true);')
           end
         end
-      }.should raise_error(Rhino::RunawayScriptError)
-    end
-    
-    it "has a private constructor" do
-      lambda {
-        Context.new(nil)
-      }.should raise_error
-    end
+      }.should raise_error(RunawayScriptError)
+    end    
   end
 
   describe "loading javascript source into the interpreter" do
@@ -330,17 +314,21 @@ describe "Ruby Javascript API" do
     end
   
     it "can have its properties manipulated via ruby style [] hash access" do
-      @o["foo"] = 'bar'
-      evaljs('o.foo').should == "bar"
-      evaljs('o.blue = "blam"')
-      @o["blue"].should == "blam"
+      @cxt.open do
+        @o["foo"] = 'bar'
+        evaljs('o.foo').should == "bar"
+        evaljs('o.blue = "blam"')
+        @o["blue"].should == "blam"
+      end
     end
   
     it "doesn't matter if you use a symbol or a string to set a value" do
-      @o[:foo] = "bar"
-      @o['foo'].should == "bar"
-      @o['baz'] = "bang"
-      @o[:baz].should == "bang"
+      @cxt.open do
+        @o[:foo] = "bar"
+        @o['foo'].should == "bar"
+        @o['baz'] = "bang"
+        @o[:baz].should == "bang"
+      end
     end
   
     it "returns nil when the value is null, null, or not defined" do
@@ -358,8 +346,10 @@ EOJS
     end
 
     it "is enumenable" do
-      evaljs("o.foo = 'bar'; o.bang = 'baz'; o[5] = 'flip'")
-      @o.inject({}) {|i,p| k,v = p; i.tap {i[k] = v}}.should == {"foo" => 'bar', "bang" => 'baz', 5 => 'flip'}    
+      @cxt.open do
+        evaljs("o.foo = 'bar'; o.bang = 'baz'; o[5] = 'flip'")
+        @o.inject({}) {|i,p| k,v = p; i.tap {i[k] = v}}.should == {"foo" => 'bar', "bang" => 'baz', 5 => 'flip'}    
+      end
     end  
 end
 
