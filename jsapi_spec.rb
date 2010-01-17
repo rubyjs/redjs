@@ -345,9 +345,7 @@ end
   describe "Exception Handling" do
     it "raises javascript exceptions as ruby exceptions" do
       lambda {
-        Context.open do |cxt|
-          cxt.eval('foo')
-        end
+        Context.new.eval('foo')
       }.should raise_error(JavascriptError)
     end
   end
