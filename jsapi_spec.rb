@@ -113,27 +113,30 @@ describe "Ruby Javascript API" do
         cxt.eval('timesfive(3)').should == 15
       end          
     end
+    
+    it "reports ruby methods that do not exist as undefined" do
+      Context.open(:with => Object.new) do |cxt|
+        cxt.eval('this.foobar').should be_nil 
+      end
+    end
   
     it "can call public locally defined ruby methods" do
       class_eval do
-        def voo
-          "doo"
+        def voo(str)
+          "voo#{str}"
         end
       end
-      evaljs("o.voo").should_not be_nil
-      evaljs("o.voo()").should == "doo"
+      evaljs("o.voo('doo')").should == "voodoo"
     end
   
     it "translates ruby naming conventions into javascript naming conventions, but you can still access them by their original names" do
       class_eval do
-        def my_special_method
-          "hello"
+        def my_special_method(to)
+          "hello #{to}"
         end
       end
-      evaljs("o.mySpecialMethod").should_not be_nil
-      evaljs("o.mySpecialMethod()").should == "hello"
-      evaljs("o.my_special_method").should_not be_nil
-      evaljs("o.my_special_method()").should == "hello"
+      evaljs("o.mySpecialMethod('Frank')").should == "hello Frank"
+      evaljs("o.my_special_method('Jack')").should == "hello Jack"
     end
   
     it "hides methods not defined directly on this instance's class" do
@@ -152,7 +155,6 @@ describe "Ruby Javascript API" do
         def baz_bang        
         end      
       end
-      pending "why the hell isn't the return value of getIds() being respected?!?"
       evaljs(<<-EOJS).should == ["fooBar,bazBang"]
       var names = [];
       for (var p in o) {
@@ -166,18 +168,49 @@ describe "Ruby Javascript API" do
       Context.open do |cxt|
         cxt['o'] = @instance
         class_eval do
-          def bar
-            "baz!"
+          def whiz(str)
+            "whiz#{str}!"
           end
         end
-        cxt.eval("o.bar").should_not be_nil
-        cxt.eval("o.bar()").should == "baz!"
+        cxt.eval("o.whiz('bang')").should == "whizbang!"
       end
     end 
   
-    it "treats ruby methods that have an arity of 0 as javascript properties by default"
+    it "treats ruby methods that have an arity of 0 as javascript properties by default" do
+      class_eval do
+        def property
+          "flan!"
+        end
+      end
+      evaljs('o.property').should == 'flan!'
+    end
   
-    it "will call ruby accesssor function when setting a property from javascript"  
+    it "will call ruby accesssor function when setting a property from javascript" do
+      class_eval do
+        def dollars
+          @dollars
+        end
+        
+        def dollars=(amount)
+          @dollars = amount
+        end        
+      end
+      evaljs('o.dollars = 50')
+      @instance.dollars.should == 50
+    end
+    
+    it "will accept expando properties by default for properties on ruby object that are not implemented in ruby" do
+      evaljs('o.five = 5; o.five').should == 5
+    end
+    
+    it "it silently fails to replace properties which are defined on ruby objects but which are read-only" do
+      class_eval do
+        def bar
+          "baz"
+        end      
+      end
+      evaljs('o.bar = "bing"; o.bar').should == "baz"
+    end
   
     def evaljs(str)
       Context.open do |cxt|
