@@ -384,5 +384,11 @@ end
         Context.new.eval('foo')
       }.should raise_error(JavascriptError)
     end
+
+    it "can handle syntax errors" do
+    	lambda {
+    		Context.eval('does not compiles')
+    	}.should raise_error
+    end
   end
 end
