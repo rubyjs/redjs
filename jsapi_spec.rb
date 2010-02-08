@@ -390,5 +390,16 @@ end
     		Context.eval('does not compiles')
     	}.should raise_error
     end
+    
+    it "should track message state" do
+      begin        
+        Context.open do |cxt|
+          cxt.eval("var foo = 'bar';\nsyntax error!", "foo.js")
+        end
+      rescue JavascriptError => e
+        e.line_number.should == 2
+        e.source_name.should == "foo.js"
+      end
+    end
   end
 end
