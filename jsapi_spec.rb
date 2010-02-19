@@ -373,7 +373,12 @@ EOJS
     it "is enumenable" do
       @cxt.open do
         evaljs("o.foo = 'bar'; o.bang = 'baz'; o[5] = 'flip'")
-        @o.inject({}) {|i,p| k,v = p; i.tap {i[k] = v}}.should == {"foo" => 'bar', "bang" => 'baz', 5 => 'flip'}    
+        {}.tap do |h|
+          @o.each do |k,v|
+            h[k] = v
+          end
+          h.should == {"foo" => 'bar', "bang" => 'baz', 5 => 'flip'}
+        end
       end
     end  
 end
