@@ -228,6 +228,22 @@ describe "Ruby Javascript API" do
   
   end
 
+  describe "Calling JavaScript Code From Within Ruby" do
+    it "allows you to capture a reference to a javascript function and call it" do
+      Context.open do |cxt|
+        f = cxt.eval('(function add(lhs, rhs) {return lhs + rhs})')
+        f.call(nil, 1,2).should == 3
+      end
+    end
+    
+    it "can be done outside an open context" do
+      Context.open do |cxt|
+        @f = cxt.eval('(function add(lhs, rhs) {return lhs + rhs})')
+      end
+      @f.call(nil, 1,1).should == 2
+    end
+  end
+
   describe "Setting up the Host Environment" do
     it "can eval javascript with a given ruby object as the scope." do
       scope = Class.new.class_eval do
