@@ -75,10 +75,19 @@ describe "Ruby Javascript API" do
       end
     end
 
-    it "automatically converts arrays to javascript" do
+    it "converts arrays to javascript" do
       Context.new do |cxt|
         cxt['a'] = [1,2,4]
         cxt.eval('var sum = 0;for (var i = 0; i < a.length; i++) {sum += a[i]}; sum').should == 7
+      end
+    end
+
+    it "converts ruby hashes to javascript objects" do
+      Context.new do |cxt|
+        cxt['h'] = {:foo => 'bar', :baz => 'bang', :bar => {'hello' => 'world'}}
+        cxt['h']['foo'].should == 'bar'
+        cxt['h']['baz'].should == 'bang'
+        cxt['h']['bar']['hello'].should == 'world'
       end
     end
   end
