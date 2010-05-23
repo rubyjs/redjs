@@ -73,7 +73,14 @@ describe "Ruby Javascript API" do
           cxt.eval('get()').should be(o)
         end
       end
-    end   
+    end
+
+    it "automatically converts arrays to javascript" do
+      Context.new do |cxt|
+        cxt['a'] = [1,2,4]
+        cxt.eval('var sum = 0;for (var i = 0; i < a.length; i++) {sum += a[i]}; sum').should == 7
+      end
+    end
   end
 
   describe "Calling Ruby Code From Within Javascript" do
@@ -246,7 +253,6 @@ describe "Ruby Javascript API" do
     it "unwraps objects that are backed by javascript objects to pass their native equivalents" do |cxt|
       Context.open do |cxt|
         cxt.eval('obj = {foo: "bar"}')
-        cxt['puts'] = lambda {|msg| puts msg}
         f = cxt.eval('(function() {return this == obj})')
         f.call(cxt['obj']).should be(true)
       end
