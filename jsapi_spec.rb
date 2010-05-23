@@ -242,6 +242,15 @@ describe "Ruby Javascript API" do
       end
       @f.call(nil, 1,1).should == 2
     end
+
+    it "unwraps objects that are backed by javascript objects to pass their native equivalents" do |cxt|
+      Context.open do |cxt|
+        cxt.eval('obj = {foo: "bar"}')
+        cxt['puts'] = lambda {|msg| puts msg}
+        f = cxt.eval('(function() {return this == obj})')
+        f.call(cxt['obj']).should be(true)
+      end
+    end
   end
 
   describe "Setting up the Host Environment" do
