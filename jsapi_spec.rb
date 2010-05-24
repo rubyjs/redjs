@@ -106,6 +106,24 @@ describe "Ruby Javascript API" do
       end
     end
   
+    it "translates ruby Array to Javascript Array" do
+      class_eval do
+        def ruby_array
+          []
+        end
+      end
+      evaljs('o.ruby_array instanceof Array').should == true
+    end
+  
+    it "translates ruby Time to Javascript Date" do
+      class_eval do
+        def ruby_time
+          Time.new
+        end
+      end
+      evaljs('o.ruby_time instanceof Date').should == true
+    end
+
     it "can embed a ruby object into a context and call its methods" do
       class_eval do
         def say_hello(to)
