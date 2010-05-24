@@ -112,7 +112,7 @@ describe "Ruby Javascript API" do
           []
         end
       end
-      evaljs('o.ruby_array instanceof Array').should == true
+      evaljs('o.ruby_array() instanceof Array').should == true
     end
   
     it "translates ruby Time to Javascript Date" do
@@ -121,7 +121,7 @@ describe "Ruby Javascript API" do
           Time.new
         end
       end
-      evaljs('o.ruby_time instanceof Date').should == true
+      evaljs('o.ruby_time() instanceof Date').should == true
     end
 
     it "can embed a ruby object into a context and call its methods" do
