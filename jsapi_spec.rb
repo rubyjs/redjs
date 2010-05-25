@@ -122,6 +122,8 @@ describe "Ruby Javascript API" do
         end
       end
       evaljs('o.ruby_time instanceof Date').should == true
+      evaljs('o.ruby_time.valueOf()').should == Time.new.to_i
+      evaljs('new Date()').should be_kind_of(Time)
     end
 
     it "can embed a ruby object into a context and call its methods" do
