@@ -481,5 +481,35 @@ end
         e.source_name.should == "foo.js"
       end
     end
+
+    it "translates ruby exceptions into javascript exceptions if they are thrown from code called it javascript" do
+      Context.new do |cxt|
+        cxt['rputs'] = lambda {|msg| rputs msg}
+        cxt['boom'] = lambda do
+          raise "BOOM!"
+        end
+        cxt.eval('var msg;try {boom()} catch (e) {msg = e.message};msg').should == 'BOOM!'
+      end
+    end
+
+    it "will allow exceptions to pass through multiple languages boundaries (i.e. js -> rb -> js -> rb)" do
+      Context.new do |cxt|
+        cxt['one'] = lambda do
+          cxt.eval('two()', 'one.js')
+        end
+        cxt['two'] = lambda do
+          cxt.eval('three()', 'two.js')
+        end
+        cxt['three'] = lambda do
+          cxt.eval('throw "BOOM!"', "three.js")
+        end
+        lambda {
+          cxt['one'].call(cxt.scope)
+        }.should raise_error {|e|
+          #TODO: assert something about the contents of the stack?
+          #--cowboyd 05/25/2010
+        }
+      end
+    end
   end
 end
