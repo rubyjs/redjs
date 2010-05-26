@@ -79,6 +79,10 @@ describe "Ruby Javascript API" do
       Context.new do |cxt|
         cxt['a'] = [1,2,4]
         cxt.eval('var sum = 0;for (var i = 0; i < a.length; i++) {sum += a[i]}; sum').should == 7
+        cxt.eval('[1,2,3]').tap do |a|
+          a.length.should == 3
+          a.to_a.should == [1,2,3]
+        end
       end
     end
 
@@ -276,7 +280,8 @@ describe "Ruby Javascript API" do
       Context.open do |cxt|
         @f = cxt.eval('(function add(lhs, rhs) {return lhs + rhs})')
       end
-      @f.call(nil, 1,1).should == 2
+      
+      @f.call(nil, 1, 1).should == 2
     end
 
     it "unwraps objects that are backed by javascript objects to pass their native equivalents" do |cxt|
@@ -321,6 +326,16 @@ describe "Ruby Javascript API" do
         cxt.eval('num').should == 3.14
         cxt.eval('trU').should be(true)
         cxt.eval('falls').should be(false)      
+      end
+    end
+    
+    it "has the global object available as a javascript value" do
+      Context.new do |cxt|
+        cxt['foo'] = 'bar'
+        cxt.scope.should be_kind_of(V8::Object)
+        cxt.scope['foo']
+          # cxt.scope['foo'].should == 'bar'
+
       end
     end
     
