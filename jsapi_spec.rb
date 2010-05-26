@@ -130,6 +130,24 @@ describe "Ruby Javascript API" do
       evaljs('new Date()').should be_kind_of(Time)
     end
 
+    it "translates ruby true to Javascript true" do
+      class_eval do
+        def bool
+          true
+        end
+      end
+      evaljs('o.bool === true').should == true
+    end
+
+    it "translates ruby false to Javascript false" do
+      class_eval do
+        def bool
+          false
+        end
+      end
+      evaljs('o.bool === false').should == true
+    end
+
     it "can embed a ruby object into a context and call its methods" do
       class_eval do
         def say_hello(to)
