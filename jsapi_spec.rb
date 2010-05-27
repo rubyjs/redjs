@@ -4,95 +4,88 @@ require "#{File.dirname(__FILE__)}/../redjs_helper.rb"
 describe "Ruby Javascript API" do
 
   describe "Basic Evaluation" do
+
+    before do
+      @cxt = Context.new
+    end
+
     it "can evaluate some javascript" do
-      Context.eval("5 + 3")
+      @cxt.eval("5 + 3").should == 8
     end
   
     it "can pass back null to ruby" do
-      Context.eval("null").should be_nil      
+      @cxt.eval("null").should be_nil
     end
   
     it "can pass back undefined to ruby" do
-      Context.eval("this.undefined").should be_nil
+      @cxt.eval("this.undefined").should be_nil
     end
   
     it "can pass the empty string back to ruby" do
-      Context.eval("''").should == ""
+      @cxt.eval("''").should == ""
     end
   
     it "can pass doubles back to ruby" do
-      Context.eval("2.5").should == 2.5
+      @cxt.eval("2.5").should == 2.5
     end
   
     it "can pass fixed numbers back to ruby" do
-      Context.eval("1").should == 1
+      @cxt.eval("1").should == 1
     end
   
     it "can pass boolean values back to ruby" do
-      Context.eval("true").should be(true)
-      Context.eval("false").should be(false)
+      @cxt.eval("true").should be(true)
+      @cxt.eval("false").should be(false)
     end  
   
     it "treats nil and the empty string as the same thing when it comes to eval" do
-      Context.eval(nil).should == Context.eval('')
+      @cxt.eval(nil).should == Context.eval('')
     end
   
     it "can pass back strings to ruby" do
-      Context.open do |cxt|
-        cxt['foo'] = "Hello World"
-        cxt.eval("foo").should == "Hello World"
-      end
+      @cxt['foo'] = "Hello World"
+      @cxt.eval("foo").should == "Hello World"
     end
 
     it "can pass back very long strings to ruby" do
       lorem = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis faucibus, diam vel pellentesque aliquet, nisl sapien molestie eros, vitae vehicula libero massa vel neque. Phasellus tempor pharetra ipsum vel venenatis. Quisque vitae nisl vitae quam mattis pellentesque et in sapien. Sed at lectus quis eros pharetra feugiat non ac neque. Vivamus lacus eros, feugiat at volutpat at, viverra id nisl. Vivamus ac dolor eleifend libero venenatis pharetra ut iaculis arcu. Donec neque nibh, vehicula non porta a, consectetur eu erat. Sed eleifend, metus vel euismod placerat, lectus lectus sollicitudin nisl, ac elementum sem quam nec dolor. In hac habitasse platea dictumst. Proin vitae suscipit orci. Suspendisse a ipsum vel lorem tempus scelerisque et vitae neque. Proin sodales, tellus sit amet consequat cursus, odio massa ultricies enim, eu fermentum velit lectus in lacus. Quisque eu porttitor diam. Nunc felis purus, facilisis non tristique ac, pulvinar nec nulla. Duis dolor risus, egestas nec tristique ac, ullamcorper cras amet."
-      Context.open do |cxt|
-        cxt.eval("'#{lorem}'").should == lorem
-      end
+      @cxt.eval("'#{lorem}'").should == lorem
     end
   
     it "can pass objects back to ruby" do
-      Context.open do |cxt|      
-        cxt.eval("({foo: 'bar', baz: 'bang', '5': 5, embedded: {badda: 'bing'}})").tap do |object|
-          object.should_not be_nil        
-          object['foo'].should == 'bar'
-          object['baz'].should == 'bang'
-          object['5'].should == 5
-          object['embedded'].tap do |embedded|  
-            embedded.should_not be_nil
-            embedded['badda'].should == 'bing'
-          end
+      @cxt.eval("({foo: 'bar', baz: 'bang', '5': 5, embedded: {badda: 'bing'}})").tap do |object|
+        object.should_not be_nil
+        object['foo'].should == 'bar'
+        object['baz'].should == 'bang'
+        object['5'].should == 5
+        object['embedded'].tap do |embedded|
+          embedded.should_not be_nil
+          embedded['badda'].should == 'bing'
         end
       end
     end
   
     it "unwraps ruby objects returned by embedded ruby code to maintain referential integrity" do
       Object.new.tap do |o|
-        Context.open do |cxt|
-          cxt['get'] = lambda {o}
-          cxt.eval('get()').should be(o)
-        end
+        @cxt['get'] = lambda {o}
+        @cxt.eval('get()').should be(o)
       end
     end
 
     it "converts arrays to javascript" do
-      Context.new do |cxt|
-        cxt['a'] = [1,2,4]
-        cxt.eval('var sum = 0;for (var i = 0; i < a.length; i++) {sum += a[i]}; sum').should == 7
-        cxt.eval('[1,2,3]').tap do |a|
-          a.length.should == 3
-          a.to_a.should == [1,2,3]
-        end
+      @cxt['a'] = [1,2,4]
+      @cxt.eval('var sum = 0;for (var i = 0; i < a.length; i++) {sum += a[i]}; sum').should == 7
+      @cxt.eval('[1,2,3]').tap do |a|
+        a.length.should == 3
+        a.to_a.should == [1,2,3]
       end
     end
 
     it "converts ruby hashes to javascript objects" do
-      Context.new do |cxt|
-        cxt['h'] = {:foo => 'bar', :baz => 'bang', :bar => {'hello' => 'world'}}
-        cxt['h']['foo'].should == 'bar'
-        cxt['h']['baz'].should == 'bang'
-        cxt['h']['bar']['hello'].should == 'world'
-      end
+      @cxt['h'] = {:foo => 'bar', :baz => 'bang', :bar => {'hello' => 'world'}}
+      @cxt['h']['foo'].should == 'bar'
+      @cxt['h']['baz'].should == 'bang'
+      @cxt['h']['bar']['hello'].should == 'world'
     end
   end
 
@@ -101,13 +94,14 @@ describe "Ruby Javascript API" do
     before(:each) do
       @class = Class.new
       @instance = @class.new
+      @cxt = Context.new
+      @cxt['puts'] = lambda {|o| puts o.inspect}
+      @cxt['o'] = @instance
     end
 
     it "can embed a closure into a context and call it" do
-      Context.open do |cxt|
-        cxt["say"] = lambda {|word, times| word * times}
-        cxt.eval("say('Hello',2)").should == "HelloHello"
-      end
+      @cxt["say"] = lambda {|word, times| word * times}
+      @cxt.eval("say('Hello',2)").should == "HelloHello"
     end
   
     it "translates ruby Array to Javascript Array" do
@@ -167,14 +161,13 @@ describe "Ruby Javascript API" do
         end
         new(5)
       end
-      Context.open do |cxt|
-        cxt['timesfive'] = five.method(:times)
-        cxt.eval('timesfive(3)').should == 15
-      end          
+
+      @cxt['timesfive'] = five.method(:times)
+      @cxt.eval('timesfive(3)').should == 15
     end
     
     it "reports ruby methods that do not exist as undefined" do
-      Context.open(:with => Object.new) do |cxt|
+      Context.new(:with => Object.new) do |cxt|
         cxt.eval('this.foobar').should be_nil 
       end
     end
@@ -225,15 +218,13 @@ describe "Ruby Javascript API" do
     end
   
     it "will see a method that appears after the wrapper was first created" do
-      Context.open do |cxt|
-        cxt['o'] = @instance
-        class_eval do
-          def whiz(str)
-            "whiz#{str}!"
-          end
+      @cxt['o'] = @instance
+      class_eval do
+        def whiz(str)
+          "whiz#{str}!"
         end
-        cxt.eval("o.whiz('bang')").should == "whizbang!"
       end
+      @cxt.eval("o.whiz('bang')").should == "whizbang!"
     end 
   
     it "treats ruby methods that have an arity of 0 as javascript properties by default" do
@@ -273,11 +264,7 @@ describe "Ruby Javascript API" do
     end
   
     def evaljs(str)
-      Context.open do |cxt|
-        cxt['puts'] = lambda {|o| puts o.inspect}
-        cxt['o'] = @instance
-        cxt.eval(str)
-      end
+      @cxt.eval(str)
     end
   
     def class_eval(&body)
@@ -287,31 +274,28 @@ describe "Ruby Javascript API" do
   end
 
   describe "Calling JavaScript Code From Within Ruby" do
-    it "allows you to capture a reference to a javascript function and call it" do
-      Context.open do |cxt|
-        f = cxt.eval('(function add(lhs, rhs) {return lhs + rhs})')
-        f.call(nil, 1,2).should == 3
-      end
+
+    before(:each) do
+      @cxt = Context.new
     end
     
-    it "can be done outside an open context" do
-      Context.open do |cxt|
-        @f = cxt.eval('(function add(lhs, rhs) {return lhs + rhs})')
-      end
-      
-      @f.call(nil, 1, 1).should == 2
+    it "allows you to capture a reference to a javascript function and call it" do
+      f = @cxt.eval('(function add(lhs, rhs) {return lhs + rhs})')
+      f.call(nil, 1,2).should == 3
     end
 
     it "unwraps objects that are backed by javascript objects to pass their native equivalents" do |cxt|
-      Context.open do |cxt|
-        cxt.eval('obj = {foo: "bar"}')
-        f = cxt.eval('(function() {return this == obj})')
-        f.call(cxt['obj']).should be(true)
-      end
+      @cxt.eval('obj = {foo: "bar"}')
+      f = @cxt.eval('(function() {return this == obj})')
+      f.call(@cxt['obj']).should be(true)
     end
   end
 
   describe "Setting up the Host Environment" do
+    before(:each) do
+      @cxt = Context.new
+    end
+
     it "can eval javascript with a given ruby object as the scope." do
       scope = Class.new.class_eval do
         def plus(lhs, rhs)
@@ -325,7 +309,7 @@ describe "Ruby Javascript API" do
         new
       end
 
-      Context.open(:with => scope) do |cxt|
+      Context.new(:with => scope) do |cxt|
         cxt.eval("plus(1,2)").should == 3
         cxt.eval("minus(10, 20)").should == -10
         cxt.eval("this").should be(scope)
@@ -333,28 +317,22 @@ describe "Ruby Javascript API" do
     end
   
     it "can directly embed ruby values into javascript" do
-      Context.open do |cxt|
-        cxt["bar"] = 9
-        cxt['foo'] = "bar"
-        cxt['num'] = 3.14
-        cxt['trU'] = true
-        cxt['falls'] = false
-        cxt.eval("bar + 10").should be(19)
-        cxt.eval('foo').should == "bar"
-        cxt.eval('num').should == 3.14
-        cxt.eval('trU').should be(true)
-        cxt.eval('falls').should be(false)      
-      end
+      @cxt["bar"] = 9
+      @cxt['foo'] = "bar"
+      @cxt['num'] = 3.14
+      @cxt['trU'] = true
+      @cxt['falls'] = false
+      @cxt.eval("bar + 10").should be(19)
+      @cxt.eval('foo').should == "bar"
+      @cxt.eval('num').should == 3.14
+      @cxt.eval('trU').should be(true)
+      @cxt.eval('falls').should be(false)
     end
     
     it "has the global object available as a javascript value" do
-      Context.new do |cxt|
-        cxt['foo'] = 'bar'
-        cxt.scope.should be_kind_of(V8::Object)
-        cxt.scope['foo']
-          # cxt.scope['foo'].should == 'bar'
-
-      end
+      @cxt['foo'] = 'bar'
+      @cxt.scope.should be_kind_of(V8::Object)
+      @cxt.scope['foo'].should == 'bar'
     end
     
     it "extends object to allow for the arbitrary execution of javascript with any object as the scope" do
@@ -375,7 +353,7 @@ describe "Ruby Javascript API" do
     it "can limit the number of instructions that are executed in the context" do
       pending "haven't figured out how to constrain resources in V8"
       lambda {
-        Context.open do |cxt|
+        Context.new do |cxt|
           cxt.instruction_limit = 100 * 1000
           timeout(1) do
             cxt.eval('while (true);')
@@ -402,7 +380,7 @@ describe "Ruby Javascript API" do
   foo = 'bar'
   five();
       EOJS
-      Context.open do |cxt|
+      Context.new do |cxt|
         cxt.eval(source, "StringIO").should == 5
         cxt['foo'].should == "bar"
       end
@@ -411,7 +389,7 @@ describe "Ruby Javascript API" do
     it "can load a file into the runtime" do
       mock(:JavascriptSourceFile).tap do |file|
         File.should_receive(:open).with("path/to/mysource.js").and_yield(file)
-        Context.open do |cxt|
+        Context.new do |cxt|
           cxt.should_receive(:evaluate).with(file, "path/to/mysource.js", 1)
           cxt.load("path/to/mysource.js")
         end
@@ -423,16 +401,12 @@ describe "Ruby Javascript API" do
   describe "A Javascript Object Reflected Into Ruby" do
   
     before(:each) do
-      @o = Context.open do |cxt|
-        @cxt = cxt      
-        cxt.eval("o = new Object(); o")
-      end
+      @cxt = Context.new
+      @o = @cxt.eval("o = new Object(); o")
     end
   
     def evaljs(js)
-      @cxt.open do
-        @cxt.eval(js)
-      end
+      @cxt.eval(js)
     end
   
     it "can have its properties manipulated via ruby style [] hash access" do
@@ -454,7 +428,7 @@ describe "Ruby Javascript API" do
     end
 
     it "traverses the prototype chain when hash accessing properties from the ruby object" do
-      Context.open do |cxt|
+      Context.new do |cxt|
         cxt.eval(<<EOJS)['bar'].should == "baz"
 function Foo() {}
 Foo.prototype.bar = 'baz'
@@ -464,14 +438,12 @@ EOJS
     end
 
     it "is enumenable" do
-      @cxt.open do
-        evaljs("o.foo = 'bar'; o.bang = 'baz'; o[5] = 'flip'")
-        {}.tap do |h|
-          @o.each do |k,v|
-            h[k] = v
-          end
-          h.should == {"foo" => 'bar', "bang" => 'baz', 5 => 'flip'}
+      evaljs("o.foo = 'bar'; o.bang = 'baz'; o[5] = 'flip'")
+      {}.tap do |h|
+        @o.each do |k,v|
+          h[k] = v
         end
+        h.should == {"foo" => 'bar', "bang" => 'baz', 5 => 'flip'}
       end
     end  
 end
@@ -479,7 +451,7 @@ end
   describe "Exception Handling" do
     it "raises javascript exceptions as ruby exceptions" do
       lambda {
-        Context.new.eval('foo')
+        Context.eval('foo')
       }.should raise_error(JavascriptError)
     end
 
@@ -491,9 +463,7 @@ end
     
     it "should track message state" do
       begin        
-        Context.open do |cxt|
-          cxt.eval("var foo = 'bar';\nsyntax error!", "foo.js")
-        end
+        Context.new.eval("var foo = 'bar';\nsyntax error!", "foo.js")
       rescue JavascriptError => e
         e.line_number.should == 2
         e.source_name.should == "foo.js"
