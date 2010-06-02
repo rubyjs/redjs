@@ -81,6 +81,15 @@ describe "Ruby Javascript API" do
       end
     end
 
+    it "can iterate over arrays" do
+      @cxt['a'] = @cxt.eval('[{num: 1},{num:2},{num:3},{num: 4}]')
+      a = @cxt['a']
+      a.inject(0) do |sum, item|
+        sum + item['num']
+      end.should == 10
+
+    end
+
     it "converts ruby hashes to javascript objects" do
       @cxt['h'] = {:foo => 'bar', :baz => 'bang', :bar => {'hello' => 'world'}}
       @cxt['h']['foo'].should == 'bar'
