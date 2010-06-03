@@ -287,16 +287,46 @@ describe "Ruby Javascript API" do
     before(:each) do
       @cxt = Context.new
     end
-    
+
     it "allows you to capture a reference to a javascript function and call it" do
       f = @cxt.eval('(function add(lhs, rhs) {return lhs + rhs})')
-      f.call(nil, 1,2).should == 3
+      f.call(1,2).should == 3
+    end
+
+    it "can path the 'this' object into a function as context with methodcall()" do
+      obj = @cxt.eval('({num: 5})')
+      times = @cxt.eval('(function times(num) {return this.num * num})')
+      times.methodcall(obj, 5).should == 25
     end
 
     it "unwraps objects that are backed by javascript objects to pass their native equivalents" do |cxt|
       @cxt.eval('obj = {foo: "bar"}')
       f = @cxt.eval('(function() {return this == obj})')
-      f.call(@cxt['obj']).should be(true)
+      f.methodcall(@cxt['obj']).should be(true)
+    end
+
+    it "can invoke a javacript constructor and return the new object reflected into ruby" do
+      wrapper = @cxt.eval('(function Wrapper(value) {this.value = value})')
+      wrapper.new(5)['value'].should == 5
+    end
+
+    it "can call a javascript method directly from a ruby object" do
+      obj = @cxt.eval('Object').new
+      obj.should respond_to(:toString)
+      obj.toString().should == '[object Object]'
+    end
+
+    it "can access properties defined on a javascript object through ruby" do
+      obj = @cxt.eval('({str: "bar", num: 5})')
+      obj.str.should == "bar"
+      obj.num.should == 5
+    end
+
+    it "is an error to try and pass parameters to a property" do
+      obj = @cxt.eval('({num: 1})')
+      lambda {
+        obj.num(5)
+      }.should raise_error(ArgumentError)
     end
   end
 
