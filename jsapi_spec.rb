@@ -354,7 +354,7 @@ describe "Ruby Javascript API" do
         cxt.eval("this").should be(scope)
       end    
     end
-  
+
     it "can directly embed ruby values into javascript" do
       @cxt["bar"] = 9
       @cxt['foo'] = "bar"
@@ -367,11 +367,61 @@ describe "Ruby Javascript API" do
       @cxt.eval('trU').should be(true)
       @cxt.eval('falls').should be(false)
     end
-    
+
     it "has the global object available as a javascript value" do
       @cxt['foo'] = 'bar'
       @cxt.scope.should be_kind_of(V8::Object)
       @cxt.scope['foo'].should == 'bar'
+    end
+
+    it "will treat class objects as constructors by default" do
+      @cxt[:MyClass] = Class.new.tap do |cls|
+        cls.class_eval do
+          attr_reader :one, :two
+          def initialize(one, two)
+            @one, @two = one, two
+            # rputs "one: #{@one}, two: #{@two}"
+          end
+        end
+      end
+      @cxt.eval('new MyClass(1,2).one').should == 1
+      @cxt.eval('new MyClass(1,2).two').should == 2
+    end
+
+    it "unwraps reflected ruby constructor objects into their underlying ruby classes" do
+      @cxt['RubyObject'] = Object
+      @cxt['RubyObject'].should be(Object)
+    end
+
+    it "honors the instanceof operator for ruby instances when compared to their reflected constructors" do
+      @cxt['RubyObject'] = Object
+      @cxt['one'] = Object.new
+      @cxt['two'] = Object.new
+      @cxt.eval('one instanceof RubyObject')
+      @cxt.eval('two instanceof RubyObject')
+      @cxt.eval('RubyObject instanceof Function').should be(true)
+      @cxt.eval('new RubyObject() instanceof RubyObject').should be(true)
+      @cxt.eval('new RubyObject() instanceof Array').should be(false)
+      @cxt.eval('new RubyObject() instanceof Object').should be(true)
+    end
+
+    it "unwraps instances created by a native constructor when passing them back to ruby" do
+      cls = Class.new.tap do |c|
+        c.class_eval do
+          def definitely_a_product_of_this_one_off_class?
+            true
+          end
+        end
+      end
+      @cxt['RubyClass'] = cls
+      @cxt.eval('new RubyClass()').should be_definitely_a_product_of_this_one_off_class
+    end
+
+    it "does not allow you to call a native ruby constructor, unless that constructor has been directly embedded" do
+      @cxt['o'] = Class.new.new
+      lambda {
+        @cxt.eval('new (o.constructor)()')
+      }.should raise_error(JavascriptError)
     end
     
     it "extends object to allow for the arbitrary execution of javascript with any object as the scope" do
@@ -388,7 +438,7 @@ describe "Ruby Javascript API" do
         new.eval_js("timesfive(6)").should == 30
       end
     end
-  
+
     it "can limit the number of instructions that are executed in the context" do
       pending "haven't figured out how to constrain resources in V8"
       lambda {
@@ -402,7 +452,7 @@ describe "Ruby Javascript API" do
     end    
   end
 
-  describe "loading javascript source into the interpreter" do
+  describe "Loading javascript source into the interpreter" do
 
     it "can take an IO object in the eval method instead of a string" do
       source = StringIO.new(<<-EOJS)
