@@ -421,7 +421,7 @@ describe "Ruby Javascript API" do
       @cxt['o'] = Class.new.new
       lambda {
         @cxt.eval('new (o.constructor)()')
-      }.should raise_error(JavascriptError)
+      }.should raise_error(JSError)
     end
     
     it "extends object to allow for the arbitrary execution of javascript with any object as the scope" do
@@ -541,22 +541,13 @@ end
     it "raises javascript exceptions as ruby exceptions" do
       lambda {
         Context.eval('foo')
-      }.should raise_error(JavascriptError)
+      }.should raise_error(JSError)
     end
 
     it "can handle syntax errors" do
     	lambda {
     		Context.eval('does not compiles')
     	}.should raise_error
-    end
-    
-    it "should track message state" do
-      begin        
-        Context.new.eval("var foo = 'bar';\nsyntax error!", "foo.js")
-      rescue JavascriptError => e
-        e.line_number.should == 2
-        e.source_name.should == "foo.js"
-      end
     end
 
     it "translates ruby exceptions into javascript exceptions if they are thrown from code called it javascript" do
