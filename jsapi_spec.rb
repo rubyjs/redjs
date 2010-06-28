@@ -194,18 +194,16 @@ describe "Ruby Javascript API" do
 
       it "can access methods defined in an object's superclass" do
         o = Class.new.class_eval do
+          attr_accessor :foo
           def foo
-            "FOO"
+            @foo ||= "FOO"
           end
-          Class.new(self).class_eval do
-            def bar
-              "BAR"
-            end
-            self
-          end
+          Class.new(self)
         end.new
         Context.new(:with => o) do |cxt|
           cxt.eval('this.foo').should == 'FOO'
+          cxt.eval('this.foo = "bar!"')
+          cxt.eval('this.foo').should == "bar!"
         end
       end
 
@@ -213,8 +211,9 @@ describe "Ruby Javascript API" do
       it "allows a ruby object to intercept property setting with []="
       it "allows access to methods defined on an objects included/extended modules (class)" do
         m = Module.new.module_eval do
+          attr_accessor :foo
           def foo
-            "FOO"
+            @foo ||= "FOO"
           end
           self
         end
@@ -222,32 +221,42 @@ describe "Ruby Javascript API" do
           include m
         end.new
         Context.new(:with => o) do |cxt|
-          cxt.eval("this.foo").should == "FOO"
+          cxt.eval('this.foo').should == "FOO"
+          cxt.eval('this.foo = "bar!"')
+          cxt.eval('this.foo').should == "bar!"
         end
       end
 
       it "allows access to methods defined on an objects included/extended modules (instance)" do
         m = Module.new.module_eval do
+          attr_accessor :foo
           def foo
-            "FOO"
+            @foo ||= "FOO"
           end
           self
         end
         Object.new.tap do |o|
           o.extend(m)
           Context.new(:with => o) do |cxt|
-            cxt.eval("this.foo").should == "FOO"
+            cxt.eval('this.foo').should == "FOO"
+            cxt.eval('this.foo = "bar!"')
+            cxt.eval('this.foo').should == "bar!"
           end
         end
       end
-      
+
       it "allows access to public singleton methods" do
         Object.new.tap do |o|
+          class << o
+            attr_accessor :foo
+          end
           def o.foo
-            "FOO"
+            @foo ||= "FOO"
           end
           Context.new(:with => o) do |cxt|
             cxt.eval("this.foo").should == "FOO"
+            cxt.eval('this.foo = "bar!"')
+            cxt.eval('this.foo').should == "bar!"
           end
         end
       end
@@ -300,7 +309,6 @@ describe "Ruby Javascript API" do
       end
       evaljs('o.property').should == 'flan!'
     end
-  
 
     it "will call ruby accesssor function when setting a property from javascript" do
       class_eval do
