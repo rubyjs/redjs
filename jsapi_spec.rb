@@ -192,13 +192,79 @@ describe "Ruby Javascript API" do
         end
       end
 
-      it "can access methods defined in an object's superclass"
-      
-      it "allows access to methods defined on an objects included/extended modules"
-      
-      it "allows access to public singleton methods"
+      it "can access methods defined in an object's superclass" do
+        o = Class.new.class_eval do
+          def foo
+            "FOO"
+          end
+          Class.new(self).class_eval do
+            def bar
+              "BAR"
+            end
+            self
+          end
+        end.new
+        Context.new(:with => o) do |cxt|
+          cxt.eval('this.foo').should == 'FOO'
+        end
+      end
 
-      it "does not allow access to methods defined on Object and above"
+      it "allows a ruby object to intercept property access with []"
+      it "allows a ruby object to intercept property setting with []="
+      it "allows access to methods defined on an objects included/extended modules (class)" do
+        m = Module.new.module_eval do
+          def foo
+            "FOO"
+          end
+          self
+        end
+        o = Class.new.class_eval do
+          include m
+        end.new
+        Context.new(:with => o) do |cxt|
+          cxt.eval("this.foo").should == "FOO"
+        end
+      end
+
+      it "allows access to methods defined on an objects included/extended modules (instance)" do
+        m = Module.new.module_eval do
+          def foo
+            "FOO"
+          end
+          self
+        end
+        Object.new.tap do |o|
+          o.extend(m)
+          Context.new(:with => o) do |cxt|
+            cxt.eval("this.foo").should == "FOO"
+          end
+        end
+      end
+      
+      it "allows access to public singleton methods" do
+        Object.new.tap do |o|
+          def o.foo
+            "FOO"
+          end
+          Context.new(:with => o) do |cxt|
+            cxt.eval("this.foo").should == "FOO"
+          end
+        end
+      end
+
+      it "does not allow access to methods defined on Object and above" do
+        o = Class.new.class_eval do
+          def foo
+            "FOO"
+          end
+          self.new
+        end
+        Context.new(:with => o) do |cxt|
+          for method in Object.public_instance_methods
+            cxt.eval("this['#{method}']").should be_nil
+          end
+        end
+      end
 
       it "hides methods derived from Object, Kernel, etc..." do
         class_eval do
@@ -235,6 +301,7 @@ describe "Ruby Javascript API" do
       evaljs('o.property').should == 'flan!'
     end
   
+
     it "will call ruby accesssor function when setting a property from javascript" do
       class_eval do
         def dollars
