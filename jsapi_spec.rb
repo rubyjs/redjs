@@ -175,57 +175,47 @@ describe "Ruby Javascript API" do
       @cxt.eval('timesfive(3)').should == 15
     end
     
-    it "reports ruby methods that do not exist as undefined" do
-      Context.new(:with => Object.new) do |cxt|
-        cxt.eval('this.foobar').should be_nil 
-      end
-    end
-  
-    it "can call public locally defined ruby methods" do
-      class_eval do
-        def voo(str)
-          "voo#{str}"
-        end
-      end
-      evaljs("o.voo('doo')").should == "voodoo"
-    end
-  
-    it "translates ruby naming conventions into javascript naming conventions, but you can still access them by their original names" do
-      class_eval do
-        def my_special_method(to)
-          "hello #{to}"
-        end
-      end
-      evaljs("o.mySpecialMethod('Frank')").should == "hello Frank"
-      evaljs("o.my_special_method('Jack')").should == "hello Jack"
-    end
-  
-    it "hides methods not defined directly on this instance's class" do
-      class_eval do
-        def bar
-        end
-      end
-      evaljs("o.to_s").should be_nil
-    end
-  
-    it "translated camel case properties are enumerated by default, but perl case are not" do
-      class_eval do
-        def foo_bar
-        end
+    describe "Default Ruby Object Access" do
       
-        def baz_bang        
-        end      
+      it "can call public locally defined ruby methods" do
+        class_eval do
+          def voo(str)
+            "voo#{str}"
+          end
+        end
+        evaljs("o.voo('doo')").should == "voodoo"
       end
-      require 'set'
-      evaljs(<<-EOJS).to_set.should == Set.new(["fooBar","bazBang"])
-      var names = [];
-      for (var p in o) {
-        names.push(p);
-      }
-      names;
-      EOJS
+
+      it "reports ruby methods that do not exist as undefined" do
+        Context.new(:with => Object.new) do |cxt|
+          cxt.eval('this.foobar').should be_nil 
+        end
+      end
+
+      it "can access methods defined in an object's superclass"
+      
+      it "allows access to methods defined on an objects included/extended modules"
+      
+      it "allows access to public singleton methods"
+
+      it "does not allow access to methods defined on Object and above"
+
+      it "hides methods derived from Object, Kernel, etc..." do
+        class_eval do
+          def bar
+          end
+        end
+        evaljs("o.to_s").should be_nil
+      end
+
     end
-  
+    
+    describe  "Pluggable Ruby Object Access" do
+      
+    end
+
+
+
     it "will see a method that appears after the wrapper was first created" do
       @cxt['o'] = @instance
       class_eval do
