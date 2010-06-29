@@ -283,13 +283,35 @@ describe "Ruby Javascript API" do
         evaljs("o.to_s").should be_nil
       end
 
-    end
-    
-    describe  "Pluggable Ruby Object Access" do
-      
-    end
+      describe "with an integer index" do
+        it "allows accessing indexed properties via the []() method" do
+          class_eval do
+            def [](i)
+              "foo" * i
+            end
+          end
+          evaljs("o[3]").should == "foofoofoo"
+        end
+        it "allows setting indexed properties via the []=() method" do
+          class_eval do
+            def [](i)
+              @storage ||= []
+              @storage[i]
+            end
+            def []=(i, val)
+              @storage ||= []
+              @storage[i] = val
+            end
+          end
+          evaljs("o[3] = 'three'").should == 'three'
+          evaljs("o[3]").should == 'three'
+        end
+        
+        #TODO: I'm not sure this is warranted
+        #it "will enumerate indexed properties if a length property is provided"
+      end
 
-
+    end
 
     it "will see a method that appears after the wrapper was first created" do
       @cxt['o'] = @instance
