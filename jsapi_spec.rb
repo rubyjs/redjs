@@ -207,8 +207,53 @@ describe "Ruby Javascript API" do
         end
       end
 
-      it "allows a ruby object to intercept property access with []"
-      it "allows a ruby object to intercept property setting with []="
+      it "allows a ruby object to intercept property access with []" do
+        Class.new.class_eval do
+          def [](val)
+            "FOO"
+          end
+          Context.new(:with => new) do |cxt|
+            cxt.eval('this.foo').should == "FOO"
+            cxt.eval('this.bar').should == "FOO"
+          end
+        end
+      end
+
+      it "allows a ruby object to intercept property setting with []=" do
+        Class.new.class_eval do
+          def initialize
+            @properties = {}
+          end
+          def [](name)
+            @properties[name]
+          end
+          def []=(name, value)
+            @properties[name] = value
+          end
+
+          Context.new(:with => new) do |cxt|
+            cxt.eval('this.foo = "bar"').should == "bar"
+            cxt.eval('this.foo').should == "bar"
+          end
+        end
+      end
+
+      it "does not make the [] and []= methods visible or enumerable by default" do
+        Class.new.class_eval do
+          def [](name)
+          end
+          def []=(name, value)
+          end
+          Context.new do |cxt|
+            cxt['o'] = new
+            cxt.eval('o["[]"]').should == nil
+            cxt.eval('o["[]="]').should == nil
+            cxt.eval('a = new Array(); for (var i in o) {a.push(i)}')
+            cxt['a'].length.should == 0
+          end
+        end
+      end
+
       it "allows access to methods defined on an objects included/extended modules (class)" do
         m = Module.new.module_eval do
           attr_accessor :foo
