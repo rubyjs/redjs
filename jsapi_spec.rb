@@ -254,6 +254,45 @@ describe "Ruby Javascript API" do
         end
       end
 
+      it "doesn't kill the whole process if a dynamic interceptor or setter throws an exception" do
+        cls = Class.new.class_eval do
+          def [](name)
+            raise "BOOM!"
+          end
+          def []=(name, val)
+            raise "Bam!"
+          end
+          self
+        end
+        Context.new do |cxt|
+          cxt['foo'] = cls.new
+          lambda {
+            cxt.eval('foo.bar')
+          }.should raise_error
+          lambda {
+            cxt.eval('foo.bar = "baz"')
+          }.should raise_error
+        end
+      end
+
+      it "doesn't kill the whole process if reader or accessor throws an exception" do
+        cxt = Class.new.class_eval do
+          def foo
+            raise "NO GET 4 U!"
+          end
+          def foo=(val)
+            raise "NO SET 4 U!"
+          end
+          Context.new(:with => new)
+        end
+        lambda {
+          cxt.eval(this.foo)
+        }.should raise_error
+        lambda {
+          cxt.eval("this.foo = 'bar'")
+        }.should raise_error
+      end
+
       it "allows access to methods defined on an objects included/extended modules (class)" do
         m = Module.new.module_eval do
           attr_accessor :foo
