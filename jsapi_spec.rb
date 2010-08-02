@@ -244,6 +244,8 @@ describe "Ruby Javascript API" do
           end
           def []=(name, value)
           end
+          def bar=(value)
+          end
           Context.new do |cxt|
             cxt['o'] = new
             cxt.eval('o["[]"]').should == nil
