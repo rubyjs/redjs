@@ -393,6 +393,22 @@ describe "Ruby Javascript API" do
           evaljs("o[3]").should == 'three'
         end
         
+        it "doesn't kill the whole process if indexed interceptors throw exceptions" do
+          class_eval do
+            def [](idx)
+              raise "No Indexed Get For You!"
+            end
+            def []=(idx, value)
+              raise "No Indexed Set For You!"
+            end
+          end
+          lambda {
+            evaljs("o[1] = 'boo'")
+          }.should raise_error
+          lambda {
+            evaljs("o[1]")
+          }.should raise_error        end
+
         #TODO: I'm not sure this is warranted
         #it "will enumerate indexed properties if a length property is provided"
       end
