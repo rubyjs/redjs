@@ -238,6 +238,51 @@ describe "Ruby Javascript API" do
         end
       end
 
+      it "allows a ruby object which intercepts property access to take a pass on intercepting the property" do
+        Class.new.class_eval do
+          def initialize
+            @attrs = {}
+          end
+          def [](name)
+            name =~ /foo/ ? @attrs[name] : yield
+          end
+          def []=(name, value)
+            name =~ /foo/ ? @attrs[name] = "#{value}-diddly" : yield
+          end
+          Context.new do |cxt|
+            cxt['foo'] = new
+            cxt.eval('typeof foo.bar').should == 'undefined'
+            cxt.eval('foo.bar = "baz"')
+            cxt.eval('foo.bar').should == 'baz'
+            cxt.eval('foo.foobar').should == nil
+            cxt.eval('foo.foobar = "baz"')
+            cxt.eval('foo.foobar').should == "baz-diddly"
+          end
+        end
+      end
+      
+      it "allows a ruby object to take a pass on intercepting an indexed property" do
+        Class.new.class_eval do
+          def initialize
+            @a = []
+          end
+          def [](i)
+            i >= 5 ? @a[i] : yield
+          end
+          def []=(i, value)
+            i >= 5 ? @a[i] = "#{value}-diddly" : yield
+          end
+          Context.new do |cxt|
+            cxt['obj'] = new
+            cxt.eval('typeof obj[1]').should == 'undefined'
+            cxt.eval('obj[1] = "foo"')
+            cxt.eval('obj[1]').should == "foo"
+            cxt.eval('obj[5] = "foo"').should == "foo"
+            cxt.eval('obj[5]').should == "foo-diddly"
+          end
+        end
+      end
+
       it "does not make the [] and []= methods visible or enumerable by default" do
         Class.new.class_eval do
           def [](name)
@@ -533,13 +578,13 @@ describe "Ruby Javascript API" do
         def minus(lhs, rhs)
           lhs - rhs
         end
-      
+
         new
       end
 
       Context.new(:with => scope) do |cxt|
-        cxt.eval("plus(1,2)").should == 3
-        cxt.eval("minus(10, 20)").should == -10
+        cxt.eval("plus(1,2)", "test").should == 3
+        cxt.eval("minus(10, 20)", "test").should == -10
         cxt.eval("this").should be(scope)
       end    
     end
@@ -628,17 +673,17 @@ describe "Ruby Javascript API" do
       end
     end
 
-    it "can limit the number of instructions that are executed in the context" do
-      pending "haven't figured out how to constrain resources in V8"
-      lambda {
-        Context.new do |cxt|
-          cxt.instruction_limit = 100 * 1000
-          timeout(1) do
-            cxt.eval('while (true);')
-          end
-        end
-      }.should raise_error(RunawayScriptError)
-    end    
+    # it "can limit the number of instructions that are executed in the context" do
+    #   pending "haven't figured out how to constrain resources in V8"
+    #   lambda {
+    #     Context.new do |cxt|
+    #       cxt.instruction_limit = 100 * 1000
+    #       timeout(1) do
+    #         cxt.eval('while (true);')
+    #       end
+    #     end
+    #   }.should raise_error(RunawayScriptError)
+    # end    
   end
 
   describe "Loading javascript source into the interpreter" do
