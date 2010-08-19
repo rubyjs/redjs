@@ -622,6 +622,15 @@ describe "Ruby Javascript API" do
       @cxt.eval('new MyClass(1,2).two').should == 2
     end
 
+    it "exposes class properties as javascript properties on the corresponding constructor" do
+      @cxt[:MyClass] = Class.new.tap do |cls|
+        def cls.foo
+          "bar"
+        end
+      end
+      @cxt.eval('MyClass.foo').should == "bar"
+    end
+
     it "unwraps reflected ruby constructor objects into their underlying ruby classes" do
       @cxt['RubyObject'] = Object
       @cxt['RubyObject'].should be(Object)
