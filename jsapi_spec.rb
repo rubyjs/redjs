@@ -505,15 +505,15 @@ describe "Ruby Javascript API" do
       end
       evaljs('o.bar = "bing"; o.bar').should == "baz"
     end
-  
+
     def evaljs(str)
       @cxt.eval(str)
     end
-  
+
     def class_eval(&body)
       @class.class_eval &body
     end
-  
+
   end
 
   describe "Calling JavaScript Code From Within Ruby" do
