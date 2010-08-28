@@ -113,6 +113,12 @@ describe "Ruby Javascript API" do
       @cxt.eval("say('Hello',2)").should == "HelloHello"
     end
 
+    it "recognizes the same closure embedded into the same context as the same function object" do
+      @cxt['say'] = @cxt['declare'] = lambda {|word, times| word * times}
+      @cxt.eval('say == declare').should be(true)
+      @cxt.eval('say === declare').should be(true)
+    end
+
     it "translates ruby Array to Javascript Array" do
       class_eval do
         def ruby_array
@@ -158,6 +164,10 @@ describe "Ruby Javascript API" do
         end
       end
       evaljs('o.say_hello("Gracie")').should == "Hello Gracie!"
+    end
+
+    it "recognizes object methods as the same." do |variable|
+      @cxt.eval('o.say_hello == o.say_hello').should be(true)
     end
 
     it "can call a bound ruby method" do
