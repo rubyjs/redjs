@@ -166,8 +166,23 @@ describe "Ruby Javascript API" do
       evaljs('o.say_hello("Gracie")').should == "Hello Gracie!"
     end
 
-    it "recognizes object methods as the same." do |variable|
-      @cxt.eval('o.say_hello == o.say_hello').should be(true)
+    it "recognizes object method as the same." do |variable|
+      class_eval do
+        def foo(*a);end
+      end
+      @cxt.eval('o.foo == o.foo').should be(true)
+    end
+
+    it "recognizes functions on objects of the same class as being the same function" do
+      cls = class_eval do
+        def foo(*a);end
+        self
+      end
+      @cxt['one'] = cls.new
+      @cxt['two'] = cls.new
+      @cxt.eval('one.foo === two.foo').should be(true)
+      #TODO: nice to have, but a bit tricky.
+      # @cxt.eval('one.foo === one.constructor.prototype.foo').should be(true)
     end
 
     it "can call a bound ruby method" do
