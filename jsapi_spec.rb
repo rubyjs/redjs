@@ -52,6 +52,18 @@ describe "Ruby Javascript API" do
       @cxt.eval("'#{lorem}'").should == lorem
     end
 
+    it "translates JavaScript dates properly into ruby Time objects" do
+      now = Time.now
+      @cxt.eval('new Date()').tap do |time|
+        time.should be_kind_of(Time)
+        time.year.should == now.year
+        time.day.should == now.day
+        time.month.should == now.month
+        time.min.should == now.min
+        time.sec.should == now.sec
+      end
+    end
+
     it "can pass objects back to ruby" do
       @cxt.eval("({foo: 'bar', baz: 'bang', '5': 5, embedded: {badda: 'bing'}})").tap do |object|
         object.should_not be_nil
@@ -129,14 +141,19 @@ describe "Ruby Javascript API" do
     end
 
     it "translates ruby Time to Javascript Date" do
+      now = Time.now
       class_eval do
+        @@now = now
         def ruby_time
-          Time.new
+          @@now
         end
       end
       evaljs('o.ruby_time instanceof Date').should == true
-      evaljs('o.ruby_time.valueOf()').should == Time.new.to_i
-      evaljs('new Date()').should be_kind_of(Time)
+      evaljs('o.ruby_time.getFullYear()').should == now.year
+      evaljs('o.ruby_time.getMonth() + 1').should == now.month
+      evaljs('o.ruby_time.getDate()').should == now.day
+      evaljs('o.ruby_time.getMinutes()').should == now.min
+      evaljs('o.ruby_time.getSeconds()').should == now.sec
     end
 
     it "translates ruby true to Javascript true" do
