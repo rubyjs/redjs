@@ -598,6 +598,18 @@ describe "Ruby Javascript API" do
       obj.num.should == 5
     end
 
+    it "can set properties on the javascript object via ruby setter methods" do
+      obj = @cxt.eval('({str: "bar", num: 5})')
+      obj.str = "baz"
+      obj.str.should == "baz"
+      obj.double = proc {|i| i * 2}
+      obj.double(2).should == 4
+      obj.array = 1,2,3
+      obj.array.to_a.should == [1,2,3]
+      obj.array = [1,2,3]
+      obj.array.to_a.should == [1,2,3]
+    end
+
     it "is an error to try and pass parameters to a property" do
       obj = @cxt.eval('({num: 1})')
       lambda {
