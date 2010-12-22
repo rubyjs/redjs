@@ -84,6 +84,13 @@ describe "Ruby Javascript API" do
       end
     end
 
+    it "always returns the same ruby object for a single javascript object" do
+      obj = @cxt.eval('obj = {}')
+      obj.should be @cxt['obj']
+      @cxt.eval('obj').should be @cxt['obj']
+      @cxt['obj'].should be @cxt['obj']
+    end
+
     it "converts arrays to javascript" do
       @cxt['a'] = [1,2,4]
       @cxt.eval('var sum = 0;for (var i = 0; i < a.length; i++) {sum += a[i]}; sum').should == 7
@@ -230,7 +237,7 @@ describe "Ruby Javascript API" do
 
       it "reports ruby methods that do not exist as undefined" do
         Context.new(:with => Object.new) do |cxt|
-          cxt.eval('this.foobar').should be_nil 
+          cxt.eval('this.foobar').should be_nil
         end
       end
 
