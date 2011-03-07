@@ -150,11 +150,11 @@ describe "Ruby Javascript API" do
     it "translates ruby Time to Javascript Date" do
       now = Time.now
       class_eval do
-        @@now = now
         def ruby_time
-          @@now
+          @now
         end
       end
+      @instance.instance_variable_set(:@now, now)
       evaljs('o.ruby_time instanceof Date').should == true
       evaljs('o.ruby_time.getFullYear()').should == now.year
       evaljs('o.ruby_time.getMonth() + 1').should == now.month
