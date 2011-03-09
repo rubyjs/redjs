@@ -1,4 +1,4 @@
-
+# -*- encoding: utf-8 -*-
 require "#{File.dirname(__FILE__)}/../redjs_helper.rb"
 
 describe "Ruby Javascript API" do
@@ -50,6 +50,13 @@ describe "Ruby Javascript API" do
     it "can pass back very long strings to ruby" do
       lorem = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis faucibus, diam vel pellentesque aliquet, nisl sapien molestie eros, vitae vehicula libero massa vel neque. Phasellus tempor pharetra ipsum vel venenatis. Quisque vitae nisl vitae quam mattis pellentesque et in sapien. Sed at lectus quis eros pharetra feugiat non ac neque. Vivamus lacus eros, feugiat at volutpat at, viverra id nisl. Vivamus ac dolor eleifend libero venenatis pharetra ut iaculis arcu. Donec neque nibh, vehicula non porta a, consectetur eu erat. Sed eleifend, metus vel euismod placerat, lectus lectus sollicitudin nisl, ac elementum sem quam nec dolor. In hac habitasse platea dictumst. Proin vitae suscipit orci. Suspendisse a ipsum vel lorem tempus scelerisque et vitae neque. Proin sodales, tellus sit amet consequat cursus, odio massa ultricies enim, eu fermentum velit lectus in lacus. Quisque eu porttitor diam. Nunc felis purus, facilisis non tristique ac, pulvinar nec nulla. Duis dolor risus, egestas nec tristique ac, ullamcorper cras amet."
       @cxt.eval("'#{lorem}'").should == lorem
+    end
+
+    it "correctly handles translating strings that have non-standard characters" do
+      @cxt['utf8'] = "Σὲ γνωρίζω ἀπὸ τὴν κόψη"
+      @cxt['utf8'].should == "Σὲ γνωρίζω ἀπὸ τὴν κόψη"
+      @cxt.eval('var nativeUtf8 = "Σὲ γνωρίζω ἀπὸ τὴν κόψη"')
+      @cxt['nativeUtf8'].should == "Σὲ γνωρίζω ἀπὸ τὴν κόψη"
     end
 
     it "translates JavaScript dates properly into ruby Time objects" do
