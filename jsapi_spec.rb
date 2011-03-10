@@ -39,7 +39,7 @@ describe "Ruby Javascript API" do
     end  
 
     it "treats nil and the empty string as the same thing when it comes to eval" do
-      @cxt.eval(nil).should == Context.eval('')
+      @cxt.eval(nil).should == @cxt.eval('')
     end
 
     it "can pass back strings to ruby" do
@@ -851,7 +851,7 @@ EOJS
   describe "Exception Handling" do
     it "raises javascript exceptions as ruby exceptions" do
       lambda {
-        Context.eval('foo')
+        Context.new.eval('foo')
       }.should raise_error(JSError)
     end
 
