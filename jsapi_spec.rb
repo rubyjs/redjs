@@ -406,7 +406,8 @@ describe "Ruby Javascript API" do
         end
         o = Class.new.class_eval do
           include m
-        end.new
+          new
+        end
         Context.new(:with => o) do |cxt|
           cxt.eval('this.foo').should == "FOO"
           cxt.eval('this.foo = "bar!"')
