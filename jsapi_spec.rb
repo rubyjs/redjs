@@ -788,14 +788,9 @@ describe "Ruby Javascript API" do
     end
 
     it "can load a file into the runtime" do
-      mock(:JavascriptSourceFile).tap do |file|
-        File.should_receive(:open).with("path/to/mysource.js").and_yield(file)
-        Context.new do |cxt|
-          cxt.should_receive(:evaluate).with(file, "path/to/mysource.js", 1)
-          cxt.load("path/to/mysource.js")
-        end
+      Context.new do |cxt|
+        cxt.load(Pathname(__FILE__).dirname.join("loadme.js")).should == "I am Legend"
       end
-
     end
   end
 
