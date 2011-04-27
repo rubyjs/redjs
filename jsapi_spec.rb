@@ -618,7 +618,7 @@ describe "Ruby Javascript API" do
       obj.str = "baz"
       obj.str.should == "baz"
       obj.double = proc {|i| i * 2}
-      obj.double(2).should == 4
+      obj.double.call(2).should == 4
       obj.array = 1,2,3
       obj.array.to_a.should == [1,2,3]
       obj.array = [1,2,3]
