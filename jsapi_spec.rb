@@ -93,9 +93,9 @@ describe "Ruby Javascript API" do
 
     it "always returns the same ruby object for a single javascript object" do
       obj = @cxt.eval('obj = {}')
-      obj.should be @cxt['obj']
-      @cxt.eval('obj').should be @cxt['obj']
-      @cxt['obj'].should be @cxt['obj']
+      obj.should be(@cxt['obj'])
+      @cxt.eval('obj').should be(@cxt['obj'])
+      @cxt['obj'].should be(@cxt['obj'])
     end
 
     it "converts arrays to javascript" do
