@@ -135,8 +135,15 @@ describe "Ruby Javascript API" do
     end
 
     it "can embed a closure into a context and call it" do
-      @cxt["say"] = lambda {|word, times| word * times}
+      @cxt["say"] = lambda {|this, word, times| word * times}
       @cxt.eval("say('Hello',2)").should == "HelloHello"
+    end
+
+    it "truncates the arguments passed in to match the arity of the function" do
+      @cxt['testing'] = lambda {|this|}
+      expect{@cxt.eval('testing(1,2,3)')}.should_not raise_error
+      @cxt['testing'] = lambda {}
+      expect{@cxt.eval('testing(1,2,3)')}.should_not raise_error
     end
 
     it "recognizes the same closure embedded into the same context as the same function object" do
@@ -859,8 +866,8 @@ EOJS
 
     it "translates ruby exceptions into javascript exceptions if they are thrown from code called it javascript" do
       Context.new do |cxt|
-        cxt['rputs'] = lambda {|msg| rputs msg}
-        cxt['boom'] = lambda do
+        cxt['rputs'] = lambda {|this, msg| rputs msg}
+        cxt['boom'] = lambda do |this|
           raise "BOOM!"
         end
         cxt.eval('var msg;try {boom()} catch (e) {msg = e.message};msg').should == 'BOOM!'
