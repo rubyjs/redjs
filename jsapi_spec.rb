@@ -36,7 +36,7 @@ describe "Ruby Javascript API" do
     it "can pass boolean values back to ruby" do
       @cxt.eval("true").should be(true)
       @cxt.eval("false").should be(false)
-    end  
+    end
 
     it "treats nil and the empty string as the same thing when it comes to eval" do
       @cxt.eval(nil).should == @cxt.eval('')
@@ -525,7 +525,7 @@ describe "Ruby Javascript API" do
         end
       end
       @cxt.eval("o.whiz('bang')").should == "whizbang!"
-    end 
+    end
 
     it "treats ruby methods that have an arity of 0 as javascript properties by default" do
       class_eval do
@@ -541,10 +541,10 @@ describe "Ruby Javascript API" do
         def dollars
           @dollars
         end
-        
+
         def dollars=(amount)
           @dollars = amount
-        end        
+        end
       end
       evaljs('o.dollars = 50')
       @instance.dollars.should == 50
@@ -558,7 +558,7 @@ describe "Ruby Javascript API" do
       class_eval do
         def bar
           "baz"
-        end      
+        end
       end
       evaljs('o.bar = "bing"; o.bar').should == "baz"
     end
@@ -655,7 +655,7 @@ describe "Ruby Javascript API" do
         cxt.eval("plus(1,2)", "test").should == 3
         cxt.eval("minus(10, 20)", "test").should == -10
         cxt.eval("this").should be(scope)
-      end    
+      end
     end
 
     it "can directly embed ruby values into javascript" do
@@ -744,7 +744,7 @@ describe "Ruby Javascript API" do
         end
 
         def timesfive(rhs)
-          @lhs * rhs     
+          @lhs * rhs
         end
 
         new.eval_js("timesfive(6)").should == 30
@@ -761,7 +761,7 @@ describe "Ruby Javascript API" do
     #       end
     #     end
     #   }.should raise_error(RunawayScriptError)
-    # end    
+    # end
   end
 
   describe "Loading javascript source into the interpreter" do
@@ -841,7 +841,7 @@ EOJS
         end
         h.should == {"foo" => 'bar', "bang" => 'baz', 5 => 'flip'}
       end
-    end  
+    end
   end
 
   describe "Exception Handling" do
