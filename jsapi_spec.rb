@@ -72,11 +72,14 @@ describe "Ruby Javascript API" do
     end
 
     it "can pass objects back to ruby" do
-      @cxt.eval("({foo: 'bar', baz: 'bang', '5': 5, embedded: {badda: 'bing'}})").tap do |object|
+      @cxt.eval("({foo: 'bar', baz: 'bang', '5': 5, 6: '6', embedded: {badda: 'bing'}})").tap do |object|
         object.should_not be_nil
         object['foo'].should == 'bar'
         object['baz'].should == 'bang'
         object['5'].should == 5
+        object[ 5 ].should == 5
+        object['6'].should == '6'
+        object[ 6 ].should == '6'
         object['embedded'].tap do |embedded|
           embedded.should_not be_nil
           embedded['badda'].should == 'bing'
@@ -123,7 +126,7 @@ describe "Ruby Javascript API" do
       @cxt['h']['bar']['hello'].should == 'world'
     end
   end
-
+  
   describe "Calling Ruby Code From Within Javascript" do
 
     before(:each) do
@@ -134,6 +137,10 @@ describe "Ruby Javascript API" do
       @cxt['o'] = @instance
     end
 
+    it "reports object's type being object" do
+      @cxt.eval('typeof( o )').should == 'object'
+    end
+    
     it "can embed a closure into a context and call it" do
       @cxt["say"] = lambda {|this, word, times| word * times}
       @cxt.eval("say('Hello',2)").should == "HelloHello"
@@ -154,44 +161,40 @@ describe "Ruby Javascript API" do
 
     it "translates ruby Array to Javascript Array" do
       class_eval do
-        def ruby_array
-          []
+        def ruby_array(*args)
+          [ args ].flatten
         end
       end
-      evaljs('o.ruby_array instanceof Array').should == true
+      evaljs('o.ruby_array() instanceof Array').should == true
     end
 
     it "translates ruby Time to Javascript Date" do
-      now = Time.now
       class_eval do
-        def ruby_time
-          @now
-        end
+        @@now = Time.now
+        def now; @@now; end
       end
-      @instance.instance_variable_set(:@now, now)
-      evaljs('o.ruby_time instanceof Date').should == true
-      evaljs('o.ruby_time.getFullYear()').should == now.year
-      evaljs('o.ruby_time.getMonth() + 1').should == now.month
-      evaljs('o.ruby_time.getDate()').should == now.day
-      evaljs('o.ruby_time.getMinutes()').should == now.min
-      evaljs('o.ruby_time.getSeconds()').should == now.sec
+      now = @instance.class.send :class_variable_get, :'@@now'
+      evaljs('o.now() instanceof Date').should == true
+      evaljs('o.now().getFullYear()').should == now.year
+      evaljs('o.now().getMonth() + 1').should == now.month
+      evaljs('o.now().getDate()').should == now.day
+      evaljs('o.now().getMinutes()').should == now.min
+      evaljs('o.now().getSeconds()').should == now.sec
     end
 
     it "translates ruby true to Javascript true" do
       class_eval do
-        def bool
-          true
-        end
+        attr_accessor :bool
       end
+      @instance.bool = true
       evaljs('o.bool === true').should == true
     end
 
     it "translates ruby false to Javascript false" do
       class_eval do
-        def bool
-          false
-        end
+        attr_accessor :bool
       end
+      @instance.bool = false
       evaljs('o.bool === false').should == true
     end
 
@@ -206,9 +209,9 @@ describe "Ruby Javascript API" do
 
     it "recognizes object method as the same." do |variable|
       class_eval do
-        def foo(*a);end
+        def foo(*a); end
       end
-      @cxt.eval('o.foo == o.foo').should be(true)
+      @cxt.eval('o.foo == o.foo').should == true
     end
 
     it "recognizes functions on objects of the same class as being the same function" do
@@ -218,11 +221,19 @@ describe "Ruby Javascript API" do
       end
       @cxt['one'] = cls.new
       @cxt['two'] = cls.new
-      @cxt.eval('one.foo === two.foo').should be(true)
-      #TODO: nice to have, but a bit tricky.
-      # @cxt.eval('one.foo === one.constructor.prototype.foo').should be(true)
+      @cxt.eval('one.foo == two.foo').should == true
+      @cxt.eval('one.foo === two.foo').should == true
+      # TODO: nice to have, but a bit tricky.
+      #@cxt.eval('one.foo === one.constructor.prototype.foo').should be(true)
     end
 
+    it "reports object method type as function" do
+      class_eval do
+        def foo(*a); end
+      end
+      @cxt.eval('typeof o.foo ').should == 'function'
+    end
+    
     it "can call a bound ruby method" do
       five = class_eval do
         def initialize(lhs)
@@ -248,7 +259,7 @@ describe "Ruby Javascript API" do
         end
         evaljs("o.voo('doo')").should == "voodoo"
       end
-
+      
       it "reports ruby methods that do not exist as undefined" do
         Context.new(:with => Object.new) do |cxt|
           cxt.eval('this.foobar').should be_nil
@@ -479,6 +490,7 @@ describe "Ruby Javascript API" do
       end
 
       describe "with an integer index" do
+        
         it "allows accessing indexed properties via the []() method" do
           class_eval do
             def [](i)
@@ -487,6 +499,7 @@ describe "Ruby Javascript API" do
           end
           evaljs("o[3]").should == "foofoofoo"
         end
+        
         it "allows setting indexed properties via the []=() method" do
           class_eval do
             def [](i)
@@ -516,7 +529,8 @@ describe "Ruby Javascript API" do
           }.should raise_error
           lambda {
             evaljs("o[1]")
-          }.should raise_error        end
+          }.should raise_error
+        end
 
         #TODO: I'm not sure this is warranted
         #it "will enumerate indexed properties if a length property is provided"
@@ -534,15 +548,42 @@ describe "Ruby Javascript API" do
       @cxt.eval("o.whiz('bang')").should == "whizbang!"
     end
 
-    it "treats ruby methods that have an arity of 0 as javascript properties by default" do
+    it "treats accessible attrs as javascript properties by default" do
       class_eval do
-        def property
-          "flan!"
-        end
+        attr_accessor :property 
       end
-      evaljs('o.property').should == 'flan!'
+      evaljs('o.property').should be_nil
+      
+      @instance.instance_variable_set :'@property', 'meh'
+      evaljs('o.property').should == 'meh'
     end
 
+    it "treats writeable attrs as javascript properties by default" do
+      class_eval do
+        attr_writer :property
+      end
+      evaljs('o.property').should be_nil
+      
+      @instance.instance_variable_set :'@property', 'meh'
+      evaljs('o.property').should be_nil # no attr reader
+    end
+    
+    it "can not treat (uninitialized) readable attrs as javascript properties" do
+      class_eval do
+        attr_reader :property
+      end
+      evaljs('o.property').should_not be_nil
+      evaljs('o.property').should respond_to(:call)
+    end
+    
+    it "treats initialized instance attr readers as javascript properties" do
+      class_eval do
+        def property; @property; end
+      end
+      @instance.instance_variable_set :'@property', 'flan!'
+      evaljs('o.property').should == 'flan!'
+    end
+    
     it "will call ruby accesssor function when setting a property from javascript" do
       class_eval do
         def dollars
@@ -567,7 +608,7 @@ describe "Ruby Javascript API" do
           "baz"
         end
       end
-      evaljs('o.bar = "bing"; o.bar').should == "baz"
+      evaljs('o.bar = "bing"; o.bar()').should == "baz"
     end
 
     def evaljs(str)
@@ -579,7 +620,7 @@ describe "Ruby Javascript API" do
     end
 
   end
-
+  
   describe "Calling JavaScript Code From Within Ruby" do
 
     before(:each) do
@@ -625,7 +666,9 @@ describe "Ruby Javascript API" do
       obj.str = "baz"
       obj.str.should == "baz"
       obj.double = proc {|i| i * 2}
-      obj.double.call(2).should == 4
+      obj.double(2).should == 4
+      # NOTE: can't distinguish 'bad' no-arg `double()` invocation from `double` !
+      #obj.double.call(2).should == 4
       obj.array = 1,2,3
       obj.array.to_a.should == [1,2,3]
       obj.array = [1,2,3]
@@ -633,10 +676,8 @@ describe "Ruby Javascript API" do
     end
 
     it "is an error to try and pass parameters to a property" do
-      obj = @cxt.eval('({num: 1})')
-      lambda {
-        obj.num(5)
-      }.should raise_error(ArgumentError)
+      obj = @cxt.eval('({ num: 1 })')
+      lambda { obj.num(5) }.should raise_error(ArgumentError)
     end
   end
 
@@ -671,7 +712,7 @@ describe "Ruby Javascript API" do
       @cxt['num'] = 3.14
       @cxt['trU'] = true
       @cxt['falls'] = false
-      @cxt.eval("bar + 10").should be(19)
+      @cxt.eval("bar + 10").should == 19
       @cxt.eval('foo').should == "bar"
       @cxt.eval('num').should == 3.14
       @cxt.eval('trU').should be(true)
@@ -680,18 +721,15 @@ describe "Ruby Javascript API" do
 
     it "has the global object available as a javascript value" do
       @cxt['foo'] = 'bar'
-      @cxt.scope.should be_kind_of(V8::Object)
+      @cxt.scope.should be_kind_of(V8::Object) if defined?(V8)
       @cxt.scope['foo'].should == 'bar'
     end
 
     it "will treat class objects as constructors by default" do
-      @cxt[:MyClass] = Class.new.tap do |cls|
-        cls.class_eval do
-          attr_reader :one, :two
-          def initialize(one, two)
-            @one, @two = one, two
-            # rputs "one: #{@one}, two: #{@two}"
-          end
+      @cxt[:MyClass] = Class.new do
+        attr_reader :one, :two
+        def initialize(one, two)
+          @one, @two = one, two
         end
       end
       @cxt.eval('new MyClass(1,2).one').should == 1
@@ -699,12 +737,13 @@ describe "Ruby Javascript API" do
     end
 
     it "exposes class properties as javascript properties on the corresponding constructor" do
-      @cxt[:MyClass] = Class.new.tap do |cls|
-        def cls.foo
+      @cxt[:MyClass] = Class.new do
+        def self.foo
           "bar"
         end
       end
-      @cxt.eval('MyClass.foo').should == "bar"
+      @cxt.eval('MyClass.foo').should_not be_nil
+      @cxt.eval('MyClass.foo()').should == 'bar'
     end
 
     it "unwraps reflected ruby constructor objects into their underlying ruby classes" do
@@ -718,29 +757,33 @@ describe "Ruby Javascript API" do
       @cxt['two'] = Object.new
       @cxt.eval('one instanceof RubyObject')
       @cxt.eval('two instanceof RubyObject')
-      @cxt.eval('RubyObject instanceof Function').should be(true)
       @cxt.eval('new RubyObject() instanceof RubyObject').should be(true)
       @cxt.eval('new RubyObject() instanceof Array').should be(false)
       @cxt.eval('new RubyObject() instanceof Object').should be(true)
     end
+    
+    it "reports constructor function as being instance of Function" do
+      @cxt['RubyObject'] = Object
+      @cxt.eval('RubyObject instanceof Function').should be(true)
+    end
 
+    it "reports constructor function as of type function" do
+      @cxt['RubyObject'] = Object
+      @cxt.eval('typeof(RubyObject)').should == 'function'
+    end
+    
     it "unwraps instances created by a native constructor when passing them back to ruby" do
-      cls = Class.new.tap do |c|
-        c.class_eval do
-          def definitely_a_product_of_this_one_off_class?
-            true
-          end
-        end
+      @cxt['RubyClass'] = Class.new do
+        def definitely_a_product_of_this_one_off_class?
+          true
+        end        
       end
-      @cxt['RubyClass'] = cls
       @cxt.eval('new RubyClass()').should be_definitely_a_product_of_this_one_off_class
     end
 
     it "does not allow you to call a native ruby constructor, unless that constructor has been directly embedded" do
-      @cxt['o'] = Class.new.new
-      lambda {
-        @cxt.eval('new (o.constructor)()')
-      }.should raise_error(JSError)
+      @cxt['obj'] = Class.new.new
+      lambda { @cxt.eval('new (obj.constructor)()') }.should raise_error(JSError)
     end
 
     it "extends object to allow for the arbitrary execution of javascript with any object as the scope" do
@@ -919,4 +962,5 @@ EOJS
       end
     end
   end
+
 end
