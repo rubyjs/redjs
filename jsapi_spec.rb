@@ -221,18 +221,32 @@ describe "Ruby Javascript API" do
       @cxt['obj'] = @class.new
       @cxt.eval('obj.foo === obj.foo').should be(true)
     end
-    
-    it "recognizes functions on objects of the same class as being the same function" do
-      cls = class_eval do
-        def foo(*a);end
-        self
+
+    it "recognizes functions on objects of the same class being equal" do
+      @class.class_eval do
+        def foo(*args); args; end
       end
-      @cxt['one'] = cls.new
-      @cxt['two'] = cls.new
+      @cxt['one'] = @class.new
+      @cxt['two'] = @class.new
       @cxt.eval('one.foo == two.foo').should be(true)
+    end
+
+    it "recognizes functions on objects of the same class being the same" do
+      @class.class_eval do
+        def foo(*args); args; end
+      end
+      @cxt['one'] = @class.new
+      @cxt['two'] = @class.new
       @cxt.eval('one.foo === two.foo').should be(true)
-      #TODO: nice to have, but a bit tricky.
-      # @cxt.eval('one.foo === one.constructor.prototype.foo').should be(true)
+    end
+    
+    it "fails without the correct context passed to an object function" do
+      @class.class_eval do
+        def foo(*args); args; end
+      end
+      @cxt['obj'] = @class.new
+      @cxt.eval('var foo = obj.foo;')
+      lambda { @cxt.eval('foo()') }.should raise_error
     end
     
     it "can call a bound ruby method" do
