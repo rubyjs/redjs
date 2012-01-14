@@ -763,6 +763,23 @@ describe "Ruby Javascript API" do
       @cxt.eval('new RubyObject() instanceof Object').should be(true)
     end
     
+    it "reports constructor function as being an instance of Function" do
+      @cxt['RubyObject'] = Object
+      @cxt.eval('RubyObject instanceof Function').should be(true)
+    end
+    
+    it "respects ruby's inheritance chain with the instanceof operator" do
+      @cxt['Class1'] = klass1 = Class.new(Object)
+      @cxt['Class2'] = klass2 = Class.new(klass1)
+      @cxt['obj1'] = klass1.new
+      @cxt['obj2'] = klass2.new
+      
+      @cxt.eval('obj1 instanceof Class1').should == true
+      @cxt.eval('obj1 instanceof Class2').should == false
+      @cxt.eval('obj2 instanceof Class2').should == true
+      @cxt.eval('obj2 instanceof Class1').should == true
+    end
+    
     it "unwraps instances created by a native constructor when passing them back to ruby" do
       @cxt['RubyClass'] = Class.new do
         def definitely_a_product_of_this_one_off_class?
