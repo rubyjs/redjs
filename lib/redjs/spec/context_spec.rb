@@ -139,17 +139,17 @@ shared_examples_for "RedJS::Context", :shared => true do
       @class = Class.new
       @instance = @class.new
       @cxt = RedJS::Context.new
-      @cxt['puts'] = lambda {|o| puts o.inspect}
+      @cxt['puts'] = lambda { |o| puts o.inspect }
       @cxt['o'] = @instance
     end
 
     it "can embed a closure into a context and call it" do
-      @cxt["say"] = lambda {|word, times| word * times}
+      @cxt["say"] = lambda { |word, times| word * times }
       @cxt.eval("say('Hello',2)").should == "HelloHello"
     end
 
     it "recognizes the same closure embedded into the same context as the same function object" do
-      @cxt['say'] = @cxt['declare'] = lambda {|word, times| word * times}
+      @cxt['say'] = @cxt['declare'] = lambda { |*args| args }
       @cxt.eval('say == declare').should be(true)
       @cxt.eval('say === declare').should be(true)
     end
@@ -336,6 +336,53 @@ shared_examples_for "RedJS::Context", :shared => true do
             cxt.eval('this.foo = "bar"').should == "bar"
             cxt.eval('this.foo').should == "bar"
           end
+        end
+      end
+
+      it "allows a ruby object which intercepts property access to take a pass on intercepting the property" do
+        klass = Class.new do
+          def initialize
+            @attrs = {}
+          end
+          def [](name)
+            name =~ /foo/ ? @attrs[name] : yield
+          end
+          def []=(name, value)
+            name =~ /foo/ ? @attrs[name] = "#{value}-diddly" : yield
+          end
+        end
+
+        RedJS::Context.new do |cxt|
+          cxt['foo'] = klass.new
+          cxt.eval('typeof foo.bar').should == 'undefined'
+          cxt.eval('foo.bar = "baz"')
+          cxt.eval('foo.bar').should == 'baz'
+          cxt.eval('foo.foobar').should == nil
+          cxt.eval('foo.foobar = "baz"')
+          cxt.eval('foo.foobar').should == "baz-diddly"
+        end
+      end
+
+      it "allows a ruby object to take a pass on intercepting an indexed property" do
+        klass = Class.new do
+          def initialize
+            @arr = []
+          end
+          def [](i)
+            i >= 5 ? @arr[i] : yield
+          end
+          def []=(i, value)
+            i >= 5 ? @arr[i] = "#{value}-diddly" : yield
+          end
+        end
+        
+        RedJS::Context.new do |cxt|
+          cxt['obj'] = klass.new
+          cxt.eval('typeof obj[1]').should == 'undefined'
+          cxt.eval('obj[1] = "foo"')
+          cxt.eval('obj[1]').should == "foo"
+          cxt.eval('obj[5] = "foo"').should == "foo"
+          cxt.eval('obj[5]').should == "foo-diddly"
         end
       end
       
