@@ -19,7 +19,7 @@ You'll need [RSpec](http://rspec.info/) to use the specs RedJS provides.
 
 add this your *spec_helper.rb* :
 
-```
+```ruby
 require 'redjs'
 module RedJS
   Context = MyJS::Context # e.g. V8::Context or Rhino::Context
@@ -28,7 +28,7 @@ end
 
 add *spec/redjs_spec.rb* similar to this :
 
-```
+```ruby
 require File.expand_path('../spec_helper', File.dirname(__FILE__))
 
 require 'redjs/load_specs'
@@ -52,10 +52,12 @@ end
 * contexts provide an `eval` method for evaluating JavaScript code
 * context instances implement [] for exposing Ruby instances to JavaScript
 
-    MyJS::Context.new do |context|
-      context["math"] = MyMath.new
-      context.eval("math.plus(20, 22)") #=> 42
-    end
+```ruby
+MyJS::Context.new do |context|
+  context["math"] = MyMath.new
+  context.eval("math.plus(20, 22)") #=> 42
+end
+```
 
 ### RedJS::Error
 
