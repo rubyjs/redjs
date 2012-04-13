@@ -281,70 +281,7 @@ shared_examples_for "RedJS::Context", :shared => true do
           end
         end
       end
-
-      it "allows a ruby object which intercepts property access to take a pass on intercepting the property" do
-        Class.new.class_eval do
-          def initialize
-            @attrs = {}
-          end
-          def [](name)
-            name =~ /foo/ ? @attrs[name] : yield
-          end
-          def []=(name, value)
-            name =~ /foo/ ? @attrs[name] = "#{value}-diddly" : yield
-          end
-          RedJS::Context.new do |cxt|
-            cxt['foo'] = new
-            cxt.eval('typeof foo.bar').should == 'undefined'
-            cxt.eval('foo.bar = "baz"')
-            cxt.eval('foo.bar').should == 'baz'
-            cxt.eval('foo.foobar').should == nil
-            cxt.eval('foo.foobar = "baz"')
-            cxt.eval('foo.foobar').should == "baz-diddly"
-          end
-        end
-      end
-
-      it "allows a ruby object to take a pass on intercepting an indexed property" do
-        Class.new.class_eval do
-          def initialize
-            @a = []
-          end
-          def [](i)
-            i >= 5 ? @a[i] : yield
-          end
-          def []=(i, value)
-            i >= 5 ? @a[i] = "#{value}-diddly" : yield
-          end
-          RedJS::Context.new do |cxt|
-            cxt['obj'] = new
-            cxt.eval('typeof obj[1]').should == 'undefined'
-            cxt.eval('obj[1] = "foo"')
-            cxt.eval('obj[1]').should == "foo"
-            cxt.eval('obj[5] = "foo"').should == "foo"
-            cxt.eval('obj[5]').should == "foo-diddly"
-          end
-        end
-      end
-
-      it "does not make the [] and []= methods visible or enumerable by default" do
-        Class.new.class_eval do
-          def [](name)
-          end
-          def []=(name, value)
-          end
-          def bar=(value)
-          end
-          RedJS::Context.new do |cxt|
-            cxt['o'] = new
-            cxt.eval('o["[]"]').should == nil
-            cxt.eval('o["[]="]').should == nil
-            cxt.eval('a = new Array(); for (var i in o) {a.push(i)}')
-            cxt['a'].length.should == 0
-          end
-        end
-      end
-
+      
       it "doesn't kill the whole process if a dynamic interceptor or setter throws an exception" do
         cls = Class.new.class_eval do
           def [](name)
@@ -435,28 +372,6 @@ shared_examples_for "RedJS::Context", :shared => true do
             cxt.eval('this.foo').should == "bar!"
           end
         end
-      end
-
-      it "does not allow access to methods defined on Object and above" do
-        o = Class.new.class_eval do
-          def foo
-            "FOO"
-          end
-          self.new
-        end
-        RedJS::Context.new(:with => o) do |cxt|
-          for method in Object.public_instance_methods
-            cxt.eval("this['#{method}']").should be_nil
-          end
-        end
-      end
-
-      it "hides methods derived from Object, Kernel, etc..." do
-        class_eval do
-          def bar
-          end
-        end
-        evaljs("o.to_s").should be_nil
       end
 
       describe "with an integer index" do
@@ -715,14 +630,6 @@ shared_examples_for "RedJS::Context", :shared => true do
       @cxt.eval('new RubyClass()').should be_definitely_a_product_of_this_one_off_class
     end
 
-    it "does not allow you to call a native ruby constructor, unless that constructor has been directly embedded" do
-      klass = Class.new
-      @cxt['obj'] = klass.new
-      lambda {
-        @cxt.eval('new (obj.constructor)()')
-      }.should raise_js_error
-    end
-
     it "extends object to allow for the arbitrary execution of javascript with any object as the scope" do
       Class.new.class_eval do
 
@@ -844,16 +751,6 @@ EOJS
       }.should raise_error
     end
 
-    it "translates ruby exceptions into javascript exceptions if they are thrown from code called it javascript" do
-      RedJS::Context.new do |cxt|
-        cxt['rputs'] = lambda {|msg| rputs msg}
-        cxt['boom'] = lambda do
-          raise "BOOM!"
-        end
-        cxt.eval('var msg;try {boom()} catch (e) {msg = e.message};msg').should == 'BOOM!'
-      end
-    end
-
     it "will allow exceptions to pass through multiple languages boundaries (i.e. js -> rb -> js -> rb)" do
       RedJS::Context.new do |cxt|
         cxt['one'] = lambda do
@@ -871,32 +768,6 @@ EOJS
           #TODO: assert something about the contents of the stack?
           #--cowboyd 05/25/2010
         }
-      end
-    end
-    
-  end
-
-  describe "A Ruby class reflected into JavaScript" do
-    
-    it "will extend instances of the class when properties are added to the corresponding JavaScript constructor's prototype" do
-      klass = Class.new
-      RedJS::Context.new do |cxt|
-        cxt['RubyObject'] = klass
-        cxt.eval('RubyObject.prototype.foo = function() {return "bar"}')
-        cxt['o'] = klass.new
-        cxt.eval('o.foo()').should == "bar"
-      end
-    end
-
-    it "will extend instances of subclasses when properties are added to the corresponding JavaScript constructor's prototype" do
-      superclass = Class.new
-      subclass = Class.new(superclass)
-      RedJS::Context.new do |cxt|
-        cxt['SuperClass'] = superclass
-        cxt['SubClass'] = subclass
-        cxt['o'] = subclass.new
-        cxt.eval('SuperClass.prototype.foo = function() {return "bar"}')
-        cxt.eval('o.foo()').should == "bar"
       end
     end
     
