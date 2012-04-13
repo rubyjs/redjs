@@ -22,7 +22,8 @@ add this your *spec_helper.rb* :
 ```ruby
 require 'redjs'
 module RedJS
-  Context = MyJS::Context # e.g. V8::Context or Rhino::Context
+  Context = MyECMA::Context # e.g. V8::Context
+  Error   = MyECMA::JSError # e.g. Rhino::JSError
 end
 ```
 

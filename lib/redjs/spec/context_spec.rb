@@ -908,7 +908,7 @@ EOJS
     end
     unless defined?(RedJS::Error)
       warn "RedJS::Error not exposed, specs will only check that a generic error is raised, " + 
-           "if you have a JSError please set it e.g. `RedJS.const_set :Error, Rhnino::JSError`"
+           "if you have a JSError please set it e.g. `RedJS.const_set :Error, Rhino::JSError`"
     end
   end
   
