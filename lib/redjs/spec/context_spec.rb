@@ -204,6 +204,25 @@ shared_examples_for "RedJS::Context", :shared => true do
       @cxt.eval('obj.foo === obj.foo').should be(true)
     end
     
+    it "recognizes functions on objects of the same class being equal" do
+      @class.class_eval do
+        def foo(*args); args; end
+        self
+      end
+      @cxt['one'] = @class.new
+      @cxt['two'] = @class.new
+      @cxt.eval('one.foo == two.foo').should be(true)
+    end
+    
+    it "fails without the correct context passed to an object function" do
+      @class.class_eval do
+        def foo(*args); args; end
+      end
+      @cxt['obj'] = @class.new
+      @cxt.eval('var foo = obj.foo;')
+      lambda { @cxt.eval('foo()') }.should raise_error
+    end
+    
     it "can call a bound ruby method" do
       five = class_eval do
         def initialize(lhs)
