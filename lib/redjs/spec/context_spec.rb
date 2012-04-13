@@ -219,6 +219,22 @@ shared_examples_for "RedJS::Context", :shared => true do
       @cxt.eval('timesfive(3)').should == 15
     end
 
+    it "reports object's type being object" do
+      @cxt.eval('typeof( o )').should == 'object'
+    end
+    
+    it "reports object method type as function" do
+      @class.class_eval do
+        def foo(*args); args; end
+      end
+      @cxt.eval('typeof o.foo ').should == 'function'
+    end
+    
+    it "reports wrapped class as of type function" do
+      @cxt['RObject'] = Object
+      @cxt.eval('typeof(RObject)').should == 'function'
+    end
+    
     describe "Default Ruby Object Access" do
 
       it "can call public locally defined ruby methods" do
