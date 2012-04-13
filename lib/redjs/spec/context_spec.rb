@@ -386,18 +386,34 @@ shared_examples_for "RedJS::Context", :shared => true do
         end
       end
       
-      it "doesn't kill the whole process if a dynamic interceptor or setter throws an exception" do
-        cls = Class.new.class_eval do
-          def [](name)
-            raise "BOOM!"
-          end
-          def []=(name, val)
-            raise "Bam!"
-          end
-          self
+      it "does not make the [] and []= methods visible or enumerable by default" do
+        klass = Class.new do
+          def [](name); name; end
+          def []=(name, value); name && value; end
+          def bar=(value); value; end
         end
+        
         RedJS::Context.new do |cxt|
-          cxt['foo'] = cls.new
+          cxt['o'] = klass.new
+          cxt.eval('o["[]"]').should == nil
+          cxt.eval('o["[]="]').should == nil
+          cxt.eval('a = new Array(); for (var i in o) a.push(i);')
+          cxt['a'].length.should == 0
+        end
+      end
+      
+      it "doesn't kill the whole process if a dynamic interceptor or setter throws an exception" do
+        klass = Class.new do
+          def [](name)
+            raise "BOOM #{name}!"
+          end
+          def []=(name, value)
+            raise "Bam #{name} = #{value} !"
+          end
+        end
+        
+        RedJS::Context.new do |cxt|
+          cxt['foo'] = klass.new
           lambda {
             cxt.eval('foo.bar')
           }.should raise_error
@@ -408,15 +424,16 @@ shared_examples_for "RedJS::Context", :shared => true do
       end
 
       it "doesn't kill the whole process if reader or accessor throws an exception" do
-        cxt = Class.new.class_eval do
+        klass = Class.new do
           def foo
             raise "NO GET 4 U!"
           end
           def foo=(val)
             raise "NO SET 4 U!"
           end
-          RedJS::Context.new(:with => new)
         end
+        
+        cxt = RedJS::Context.new(:with => klass.new)
         lambda {
           cxt.eval(this.foo)
         }.should raise_error
@@ -426,18 +443,17 @@ shared_examples_for "RedJS::Context", :shared => true do
       end
 
       it "allows access to methods defined on an objects included/extended modules (class)" do
-        m = Module.new.module_eval do
+        modul = Module.new do
           attr_accessor :foo
           def foo
             @foo ||= "FOO"
           end
-          self
         end
-        o = Class.new.class_eval do
-          include m
-          new
+        klass = Class.new do
+          include modul
         end
-        RedJS::Context.new(:with => o) do |cxt|
+        
+        RedJS::Context.new(:with => klass.new) do |cxt|
           cxt.eval('this.foo').should == "FOO"
           cxt.eval('this.foo = "bar!"')
           cxt.eval('this.foo').should == "bar!"
@@ -445,36 +461,31 @@ shared_examples_for "RedJS::Context", :shared => true do
       end
 
       it "allows access to methods defined on an objects included/extended modules (instance)" do
-        m = Module.new.module_eval do
+        modul = Module.new do
           attr_accessor :foo
           def foo
             @foo ||= "FOO"
           end
           self
         end
-        Object.new.tap do |o|
-          o.extend(m)
-          RedJS::Context.new(:with => o) do |cxt|
-            cxt.eval('this.foo').should == "FOO"
-            cxt.eval('this.foo = "bar!"')
-            cxt.eval('this.foo').should == "bar!"
-          end
+        
+        obj = Object.new; obj.extend(modul)
+        RedJS::Context.new(:with => obj) do |cxt|
+          cxt.eval('this.foo').should == "FOO"
+          cxt.eval('this.foo = "bar!"')
+          cxt.eval('this.foo').should == "bar!"
         end
       end
 
       it "allows access to public singleton methods" do
-        Object.new.tap do |o|
-          class << o
-            attr_accessor :foo
-          end
-          def o.foo
-            @foo ||= "FOO"
-          end
-          RedJS::Context.new(:with => o) do |cxt|
-            cxt.eval("this.foo").should == "FOO"
-            cxt.eval('this.foo = "bar!"')
-            cxt.eval('this.foo').should == "bar!"
-          end
+        obj = Object.new
+        class << obj; attr_accessor :foo; end
+        def obj.foo; @foo ||= "FOO"; end
+        
+        RedJS::Context.new(:with => obj) do |cxt|
+          cxt.eval("this.foo").should == "FOO"
+          cxt.eval('this.foo = "bar!"')
+          cxt.eval('this.foo').should == "bar!"
         end
       end
 
@@ -507,10 +518,10 @@ shared_examples_for "RedJS::Context", :shared => true do
         it "doesn't kill the whole process if indexed interceptors throw exceptions" do
           class_eval do
             def [](idx)
-              raise "No Indexed Get For You!"
+              raise "No Indexed [#{idx}] For You!"
             end
             def []=(idx, value)
-              raise "No Indexed Set For You!"
+              raise "No Indexed [#{idx}] = #{value} For You!"
             end
           end
           lambda {
