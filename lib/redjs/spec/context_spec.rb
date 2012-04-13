@@ -718,17 +718,6 @@ shared_examples_for "RedJS::Context", :shared => true do
       end
     end
 
-    # it "can limit the number of instructions that are executed in the context" do
-    #   pending "haven't figured out how to constrain resources in V8"
-    #   lambda {
-    #     RedJS::Context.new do |cxt|
-    #       cxt.instruction_limit = 100 * 1000
-    #       timeout(1) do
-    #         cxt.eval('while (true);')
-    #       end
-    #     end
-    #   }.should raise_error(RunawayScriptError)
-    # end
   end
 
   describe "Loading javascript source into the interpreter" do
@@ -841,6 +830,13 @@ EOJS
           #TODO: assert something about the contents of the stack?
           #--cowboyd 05/25/2010
         }
+      end
+    end
+    
+    it "translates ruby exceptions into javascript exceptions if they are thrown from code called it javascript" do
+      RedJS::Context.new do |cxt|
+        cxt['boom'] = lambda { raise "BOOM!" }
+        cxt.eval('( function() { try { boom() } catch (e) { return e.message } } )()').should == 'BOOM!'
       end
     end
     
