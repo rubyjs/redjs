@@ -139,13 +139,12 @@ shared_examples_for "RedJS::Context", :shared => true do
       @class = Class.new
       @instance = @class.new
       @cxt = RedJS::Context.new
-      @cxt['puts'] = lambda { |o| puts o.inspect }
       @cxt['o'] = @instance
     end
 
     it "can embed a closure into a context and call it" do
-      @cxt["say"] = lambda { |word, times| word * times }
-      @cxt.eval("say('Hello',2)").should == "HelloHello"
+      @cxt["say"] = lambda { |*args| args[-2] * args[-1] }
+      @cxt.eval("say('Hello', 2)").should == "HelloHello"
     end
 
     it "recognizes the same closure embedded into the same context as the same function object" do
@@ -274,6 +273,18 @@ shared_examples_for "RedJS::Context", :shared => true do
     it "reports wrapped class as of type function" do
       @cxt['RObject'] = Object
       @cxt.eval('typeof(RObject)').should == 'function'
+    end
+    
+    it "truncates lambda arguments passed in to match the arity of the function" do
+      @cxt['testing'] = lambda { |arg| arg }
+      expect { 
+        @cxt.eval('testing(1,2,3)')
+      }.should_not raise_error
+      
+      @cxt['testing'] = lambda { }
+      expect { 
+        @cxt.eval('testing(1,2,3)') 
+      }.should_not raise_error
     end
     
     describe "Default Ruby Object Access" do
