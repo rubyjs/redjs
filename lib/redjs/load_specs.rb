@@ -1,0 +1,1 @@
+load 'redjs/spec/context_spec.rb'
