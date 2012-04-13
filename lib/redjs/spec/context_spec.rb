@@ -1,12 +1,11 @@
 # -*- encoding: utf-8 -*-
-require "#{File.dirname(__FILE__)}/../redjs_helper.rb"
 
-describe "Ruby Javascript API" do
+shared_examples_for "RedJS::Context", :shared => true do
 
   describe "Basic Evaluation" do
 
     before do
-      @cxt = Context.new
+      @cxt = RedJS::Context.new
     end
 
     it "can evaluate some javascript" do
@@ -84,6 +83,16 @@ describe "Ruby Javascript API" do
       end
     end
 
+    it "can pass int properties to ruby" do
+      @cxt.eval("({ 4: '4', 5: 5, '6': true })").tap do |object|
+        object[ 4 ].should == '4'
+        object['4'].should == '4'
+        object[ 5 ].should == 5
+        object['5'].should == 5
+        object['6'].should == true
+      end
+    end
+    
     it "unwraps ruby objects returned by embedded ruby code to maintain referential integrity" do
       Object.new.tap do |o|
         @cxt['get'] = lambda {o}
@@ -129,25 +138,18 @@ describe "Ruby Javascript API" do
     before(:each) do
       @class = Class.new
       @instance = @class.new
-      @cxt = Context.new
-      @cxt['puts'] = lambda {|o| puts o.inspect}
+      @cxt = RedJS::Context.new
+      @cxt['puts'] = lambda { |o| puts o.inspect }
       @cxt['o'] = @instance
     end
 
     it "can embed a closure into a context and call it" do
-      @cxt["say"] = lambda {|this, word, times| word * times}
+      @cxt["say"] = lambda { |word, times| word * times }
       @cxt.eval("say('Hello',2)").should == "HelloHello"
     end
 
-    it "truncates the arguments passed in to match the arity of the function" do
-      @cxt['testing'] = lambda {|this|}
-      expect{@cxt.eval('testing(1,2,3)')}.should_not raise_error
-      @cxt['testing'] = lambda {}
-      expect{@cxt.eval('testing(1,2,3)')}.should_not raise_error
-    end
-
     it "recognizes the same closure embedded into the same context as the same function object" do
-      @cxt['say'] = @cxt['declare'] = lambda {|word, times| word * times}
+      @cxt['say'] = @cxt['declare'] = lambda { |*args| args }
       @cxt.eval('say == declare').should be(true)
       @cxt.eval('say === declare').should be(true)
     end
@@ -203,26 +205,46 @@ describe "Ruby Javascript API" do
       end
       evaljs('o.say_hello("Gracie")').should == "Hello Gracie!"
     end
-
-    it "recognizes object method as the same." do |variable|
-      class_eval do
-        def foo(*a);end
+    
+    it "recognizes object method as the same function" do
+      @class.class_eval do
+        def foo(*args); args; end
       end
-      @cxt.eval('o.foo == o.foo').should be(true)
+      @cxt['obj'] = @class.new
+      @cxt.eval('obj.foo === obj.foo').should be(true)
     end
-
-    it "recognizes functions on objects of the same class as being the same function" do
-      cls = class_eval do
-        def foo(*a);end
+    
+    it "recognizes functions on objects of the same class being equal" do
+      @class.class_eval do
+        def foo(*args); args; end
         self
       end
-      @cxt['one'] = cls.new
-      @cxt['two'] = cls.new
+      @cxt['one'] = @class.new
+      @cxt['two'] = @class.new
+      @cxt.eval('one.foo == two.foo').should be(true)
+    end
+
+    it "recognizes functions on objects of the same class being the same" do
+      @class.class_eval do
+        def foo(*args); args; end
+        self
+      end
+      @cxt['one'] = @class.new
+      @cxt['two'] = @class.new
       @cxt.eval('one.foo === two.foo').should be(true)
       #TODO: nice to have, but a bit tricky.
       # @cxt.eval('one.foo === one.constructor.prototype.foo').should be(true)
     end
-
+    
+    it "fails without the correct context passed to an object function" do
+      @class.class_eval do
+        def foo(*args); args; end
+      end
+      @cxt['obj'] = @class.new
+      @cxt.eval('var foo = obj.foo;')
+      lambda { @cxt.eval('foo()') }.should raise_error
+    end
+    
     it "can call a bound ruby method" do
       five = class_eval do
         def initialize(lhs)
@@ -238,6 +260,22 @@ describe "Ruby Javascript API" do
       @cxt.eval('timesfive(3)').should == 15
     end
 
+    it "reports object's type being object" do
+      @cxt.eval('typeof( o )').should == 'object'
+    end
+    
+    it "reports object method type as function" do
+      @class.class_eval do
+        def foo(*args); args; end
+      end
+      @cxt.eval('typeof o.foo ').should == 'function'
+    end
+    
+    it "reports wrapped class as of type function" do
+      @cxt['RObject'] = Object
+      @cxt.eval('typeof(RObject)').should == 'function'
+    end
+    
     describe "Default Ruby Object Access" do
 
       it "can call public locally defined ruby methods" do
@@ -250,8 +288,8 @@ describe "Ruby Javascript API" do
       end
 
       it "reports ruby methods that do not exist as undefined" do
-        Context.new(:with => Object.new) do |cxt|
-          cxt.eval('this.foobar').should be_nil
+        RedJS::Context.new(:with => Object.new) do |cxt|
+          cxt.eval('this.foobar').should be nil
         end
       end
 
@@ -263,7 +301,7 @@ describe "Ruby Javascript API" do
           end
           Class.new(self)
         end.new
-        Context.new(:with => o) do |cxt|
+        RedJS::Context.new(:with => o) do |cxt|
           cxt.eval('this.foo').should == 'FOO'
           cxt.eval('this.foo = "bar!"')
           cxt.eval('this.foo').should == "bar!"
@@ -275,7 +313,7 @@ describe "Ruby Javascript API" do
           def [](val)
             "FOO"
           end
-          Context.new(:with => new) do |cxt|
+          RedJS::Context.new(:with => new) do |cxt|
             cxt.eval('this.foo').should == "FOO"
             cxt.eval('this.bar').should == "FOO"
           end
@@ -294,7 +332,7 @@ describe "Ruby Javascript API" do
             @properties[name] = value
           end
 
-          Context.new(:with => new) do |cxt|
+          RedJS::Context.new(:with => new) do |cxt|
             cxt.eval('this.foo = "bar"').should == "bar"
             cxt.eval('this.foo').should == "bar"
           end
@@ -302,7 +340,7 @@ describe "Ruby Javascript API" do
       end
 
       it "allows a ruby object which intercepts property access to take a pass on intercepting the property" do
-        Class.new.class_eval do
+        klass = Class.new do
           def initialize
             @attrs = {}
           end
@@ -312,70 +350,70 @@ describe "Ruby Javascript API" do
           def []=(name, value)
             name =~ /foo/ ? @attrs[name] = "#{value}-diddly" : yield
           end
-          Context.new do |cxt|
-            cxt['foo'] = new
-            cxt.eval('typeof foo.bar').should == 'undefined'
-            cxt.eval('foo.bar = "baz"')
-            cxt.eval('foo.bar').should == 'baz'
-            cxt.eval('foo.foobar').should == nil
-            cxt.eval('foo.foobar = "baz"')
-            cxt.eval('foo.foobar').should == "baz-diddly"
-          end
+        end
+
+        RedJS::Context.new do |cxt|
+          cxt['foo'] = klass.new
+          cxt.eval('typeof foo.bar').should == 'undefined'
+          cxt.eval('foo.bar = "baz"')
+          cxt.eval('foo.bar').should == 'baz'
+          cxt.eval('foo.foobar').should == nil
+          cxt.eval('foo.foobar = "baz"')
+          cxt.eval('foo.foobar').should == "baz-diddly"
         end
       end
 
       it "allows a ruby object to take a pass on intercepting an indexed property" do
-        Class.new.class_eval do
+        klass = Class.new do
           def initialize
-            @a = []
+            @arr = []
           end
           def [](i)
-            i >= 5 ? @a[i] : yield
+            i >= 5 ? @arr[i] : yield
           end
           def []=(i, value)
-            i >= 5 ? @a[i] = "#{value}-diddly" : yield
-          end
-          Context.new do |cxt|
-            cxt['obj'] = new
-            cxt.eval('typeof obj[1]').should == 'undefined'
-            cxt.eval('obj[1] = "foo"')
-            cxt.eval('obj[1]').should == "foo"
-            cxt.eval('obj[5] = "foo"').should == "foo"
-            cxt.eval('obj[5]').should == "foo-diddly"
+            i >= 5 ? @arr[i] = "#{value}-diddly" : yield
           end
         end
+        
+        RedJS::Context.new do |cxt|
+          cxt['obj'] = klass.new
+          cxt.eval('typeof obj[1]').should == 'undefined'
+          cxt.eval('obj[1] = "foo"')
+          cxt.eval('obj[1]').should == "foo"
+          cxt.eval('obj[5] = "foo"').should == "foo"
+          cxt.eval('obj[5]').should == "foo-diddly"
+        end
       end
-
+      
       it "does not make the [] and []= methods visible or enumerable by default" do
-        Class.new.class_eval do
+        klass = Class.new do
+          def [](name); name; end
+          def []=(name, value); name && value; end
+          def bar=(value); value; end
+        end
+        
+        RedJS::Context.new do |cxt|
+          cxt['o'] = klass.new
+          cxt.eval('o["[]"]').should == nil
+          cxt.eval('o["[]="]').should == nil
+          cxt.eval('a = new Array(); for (var i in o) a.push(i);')
+          cxt['a'].length.should == 0
+        end
+      end
+      
+      it "doesn't kill the whole process if a dynamic interceptor or setter throws an exception" do
+        klass = Class.new do
           def [](name)
+            raise "BOOM #{name}!"
           end
           def []=(name, value)
-          end
-          def bar=(value)
-          end
-          Context.new do |cxt|
-            cxt['o'] = new
-            cxt.eval('o["[]"]').should == nil
-            cxt.eval('o["[]="]').should == nil
-            cxt.eval('a = new Array(); for (var i in o) {a.push(i)}')
-            cxt['a'].length.should == 0
+            raise "Bam #{name} = #{value} !"
           end
         end
-      end
-
-      it "doesn't kill the whole process if a dynamic interceptor or setter throws an exception" do
-        cls = Class.new.class_eval do
-          def [](name)
-            raise "BOOM!"
-          end
-          def []=(name, val)
-            raise "Bam!"
-          end
-          self
-        end
-        Context.new do |cxt|
-          cxt['foo'] = cls.new
+        
+        RedJS::Context.new do |cxt|
+          cxt['foo'] = klass.new
           lambda {
             cxt.eval('foo.bar')
           }.should raise_error
@@ -386,15 +424,16 @@ describe "Ruby Javascript API" do
       end
 
       it "doesn't kill the whole process if reader or accessor throws an exception" do
-        cxt = Class.new.class_eval do
+        klass = Class.new do
           def foo
             raise "NO GET 4 U!"
           end
           def foo=(val)
             raise "NO SET 4 U!"
           end
-          Context.new(:with => new)
         end
+        
+        cxt = RedJS::Context.new(:with => klass.new)
         lambda {
           cxt.eval(this.foo)
         }.should raise_error
@@ -404,18 +443,17 @@ describe "Ruby Javascript API" do
       end
 
       it "allows access to methods defined on an objects included/extended modules (class)" do
-        m = Module.new.module_eval do
+        modul = Module.new do
           attr_accessor :foo
           def foo
             @foo ||= "FOO"
           end
-          self
         end
-        o = Class.new.class_eval do
-          include m
-          new
+        klass = Class.new do
+          include modul
         end
-        Context.new(:with => o) do |cxt|
+        
+        RedJS::Context.new(:with => klass.new) do |cxt|
           cxt.eval('this.foo').should == "FOO"
           cxt.eval('this.foo = "bar!"')
           cxt.eval('this.foo').should == "bar!"
@@ -423,62 +461,36 @@ describe "Ruby Javascript API" do
       end
 
       it "allows access to methods defined on an objects included/extended modules (instance)" do
-        m = Module.new.module_eval do
+        modul = Module.new do
           attr_accessor :foo
           def foo
             @foo ||= "FOO"
           end
           self
         end
-        Object.new.tap do |o|
-          o.extend(m)
-          Context.new(:with => o) do |cxt|
-            cxt.eval('this.foo').should == "FOO"
-            cxt.eval('this.foo = "bar!"')
-            cxt.eval('this.foo').should == "bar!"
-          end
+        
+        obj = Object.new; obj.extend(modul)
+        RedJS::Context.new(:with => obj) do |cxt|
+          cxt.eval('this.foo').should == "FOO"
+          cxt.eval('this.foo = "bar!"')
+          cxt.eval('this.foo').should == "bar!"
         end
       end
 
       it "allows access to public singleton methods" do
-        Object.new.tap do |o|
-          class << o
-            attr_accessor :foo
-          end
-          def o.foo
-            @foo ||= "FOO"
-          end
-          Context.new(:with => o) do |cxt|
-            cxt.eval("this.foo").should == "FOO"
-            cxt.eval('this.foo = "bar!"')
-            cxt.eval('this.foo').should == "bar!"
-          end
+        obj = Object.new
+        class << obj; attr_accessor :foo; end
+        def obj.foo; @foo ||= "FOO"; end
+        
+        RedJS::Context.new(:with => obj) do |cxt|
+          cxt.eval("this.foo").should == "FOO"
+          cxt.eval('this.foo = "bar!"')
+          cxt.eval('this.foo').should == "bar!"
         end
-      end
-
-      it "does not allow access to methods defined on Object and above" do
-        o = Class.new.class_eval do
-          def foo
-            "FOO"
-          end
-          self.new
-        end
-        Context.new(:with => o) do |cxt|
-          for method in Object.public_instance_methods
-            cxt.eval("this['#{method}']").should be_nil
-          end
-        end
-      end
-
-      it "hides methods derived from Object, Kernel, etc..." do
-        class_eval do
-          def bar
-          end
-        end
-        evaljs("o.to_s").should be_nil
       end
 
       describe "with an integer index" do
+        
         it "allows accessing indexed properties via the []() method" do
           class_eval do
             def [](i)
@@ -487,6 +499,7 @@ describe "Ruby Javascript API" do
           end
           evaljs("o[3]").should == "foofoofoo"
         end
+        
         it "allows setting indexed properties via the []=() method" do
           class_eval do
             def [](i)
@@ -505,10 +518,10 @@ describe "Ruby Javascript API" do
         it "doesn't kill the whole process if indexed interceptors throw exceptions" do
           class_eval do
             def [](idx)
-              raise "No Indexed Get For You!"
+              raise "No Indexed [#{idx}] For You!"
             end
             def []=(idx, value)
-              raise "No Indexed Set For You!"
+              raise "No Indexed [#{idx}] = #{value} For You!"
             end
           end
           lambda {
@@ -516,7 +529,8 @@ describe "Ruby Javascript API" do
           }.should raise_error
           lambda {
             evaljs("o[1]")
-          }.should raise_error        end
+          }.should raise_error
+        end
 
         #TODO: I'm not sure this is warranted
         #it "will enumerate indexed properties if a length property is provided"
@@ -583,7 +597,7 @@ describe "Ruby Javascript API" do
   describe "Calling JavaScript Code From Within Ruby" do
 
     before(:each) do
-      @cxt = Context.new
+      @cxt = RedJS::Context.new
     end
 
     it "allows you to capture a reference to a javascript function and call it" do
@@ -615,13 +629,13 @@ describe "Ruby Javascript API" do
     end
 
     it "can access properties defined on a javascript object through ruby" do
-      obj = @cxt.eval('({str: "bar", num: 5})')
+      obj = @cxt.eval('({ str: "bar", num: 5 })')
       obj.str.should == "bar"
       obj.num.should == 5
     end
 
     it "can set properties on the javascript object via ruby setter methods" do
-      obj = @cxt.eval('({str: "bar", num: 5})')
+      obj = @cxt.eval('({ str: "bar", num: 5 })')
       obj.str = "baz"
       obj.str.should == "baz"
       obj.double = proc {|i| i * 2}
@@ -641,8 +655,9 @@ describe "Ruby Javascript API" do
   end
 
   describe "Setting up the Host Environment" do
+    
     before(:each) do
-      @cxt = Context.new
+      @cxt = RedJS::Context.new
     end
 
     it "can eval javascript with a given ruby object as the scope." do
@@ -658,7 +673,7 @@ describe "Ruby Javascript API" do
         new
       end
 
-      Context.new(:with => scope) do |cxt|
+      RedJS::Context.new(:with => scope) do |cxt|
         cxt.eval("plus(1,2)", "test").should == 3
         cxt.eval("minus(10, 20)", "test").should == -10
         cxt.eval("this").should be(scope)
@@ -671,7 +686,7 @@ describe "Ruby Javascript API" do
       @cxt['num'] = 3.14
       @cxt['trU'] = true
       @cxt['falls'] = false
-      @cxt.eval("bar + 10").should be(19)
+      @cxt.eval("bar + 10").should == 19
       @cxt.eval('foo').should == "bar"
       @cxt.eval('num').should == 3.14
       @cxt.eval('trU').should be(true)
@@ -680,18 +695,16 @@ describe "Ruby Javascript API" do
 
     it "has the global object available as a javascript value" do
       @cxt['foo'] = 'bar'
-      @cxt.scope.should be_kind_of(V8::Object)
+      @cxt.scope.should_not be(nil)
+      @cxt.scope.should respond_to :'[]'
       @cxt.scope['foo'].should == 'bar'
     end
 
     it "will treat class objects as constructors by default" do
-      @cxt[:MyClass] = Class.new.tap do |cls|
-        cls.class_eval do
-          attr_reader :one, :two
-          def initialize(one, two)
-            @one, @two = one, two
-            # rputs "one: #{@one}, two: #{@two}"
-          end
+      @cxt[:MyClass] = Class.new do
+        attr_reader :one, :two
+        def initialize(one, two)
+          @one, @two = one, two
         end
       end
       @cxt.eval('new MyClass(1,2).one').should == 1
@@ -699,12 +712,13 @@ describe "Ruby Javascript API" do
     end
 
     it "exposes class properties as javascript properties on the corresponding constructor" do
-      @cxt[:MyClass] = Class.new.tap do |cls|
-        def cls.foo
-          "bar"
+      @cxt[:MyClass] = Class.new do
+        def self.foo(*args)
+          args.inspect
         end
       end
-      @cxt.eval('MyClass.foo').should == "bar"
+      @cxt.eval('MyClass.foo').should_not be nil
+      @cxt.eval('MyClass.foo()').should == "[]"
     end
 
     it "unwraps reflected ruby constructor objects into their underlying ruby classes" do
@@ -714,33 +728,37 @@ describe "Ruby Javascript API" do
 
     it "honors the instanceof operator for ruby instances when compared to their reflected constructors" do
       @cxt['RubyObject'] = Object
-      @cxt['one'] = Object.new
-      @cxt['two'] = Object.new
-      @cxt.eval('one instanceof RubyObject')
-      @cxt.eval('two instanceof RubyObject')
-      @cxt.eval('RubyObject instanceof Function').should be(true)
+      @cxt['rb_object'] = Object.new
+      @cxt.eval('rb_object instanceof RubyObject').should be(true)
       @cxt.eval('new RubyObject() instanceof RubyObject').should be(true)
       @cxt.eval('new RubyObject() instanceof Array').should be(false)
       @cxt.eval('new RubyObject() instanceof Object').should be(true)
     end
 
+    it "reports constructor function as being an instance of Function" do
+      @cxt['RubyObject'] = Object
+      @cxt.eval('RubyObject instanceof Function').should be(true)
+    end
+   
+    it "respects ruby's inheritance chain with the instanceof operator" do
+      @cxt['Class1'] = klass1 = Class.new(Object)
+      @cxt['Class2'] = klass2 = Class.new(klass1)
+      @cxt['obj1'] = klass1.new
+      @cxt['obj2'] = klass2.new
+      
+      @cxt.eval('obj1 instanceof Class1').should == true
+      @cxt.eval('obj1 instanceof Class2').should == false
+      @cxt.eval('obj2 instanceof Class2').should == true
+      @cxt.eval('obj2 instanceof Class1').should == true
+    end
+    
     it "unwraps instances created by a native constructor when passing them back to ruby" do
-      cls = Class.new.tap do |c|
-        c.class_eval do
-          def definitely_a_product_of_this_one_off_class?
-            true
-          end
+      @cxt['RubyClass'] = Class.new do
+        def definitely_a_product_of_this_one_off_class?
+          true
         end
       end
-      @cxt['RubyClass'] = cls
       @cxt.eval('new RubyClass()').should be_definitely_a_product_of_this_one_off_class
-    end
-
-    it "does not allow you to call a native ruby constructor, unless that constructor has been directly embedded" do
-      @cxt['o'] = Class.new.new
-      lambda {
-        @cxt.eval('new (o.constructor)()')
-      }.should raise_error(JSError)
     end
 
     it "extends object to allow for the arbitrary execution of javascript with any object as the scope" do
@@ -758,17 +776,6 @@ describe "Ruby Javascript API" do
       end
     end
 
-    # it "can limit the number of instructions that are executed in the context" do
-    #   pending "haven't figured out how to constrain resources in V8"
-    #   lambda {
-    #     Context.new do |cxt|
-    #       cxt.instruction_limit = 100 * 1000
-    #       timeout(1) do
-    #         cxt.eval('while (true);')
-    #       end
-    #     end
-    #   }.should raise_error(RunawayScriptError)
-    # end
   end
 
   describe "Loading javascript source into the interpreter" do
@@ -788,23 +795,22 @@ describe "Ruby Javascript API" do
   foo = 'bar'
   five();
       EOJS
-      Context.new do |cxt|
+      RedJS::Context.new do |cxt|
         cxt.eval(source, "StringIO").should == 5
         cxt['foo'].should == "bar"
       end
     end
 
     it "can load a file into the runtime" do
-      Context.new do |cxt|
-        cxt.load(Pathname(__FILE__).dirname.join("loadme.js")).should == "I am Legend"
-      end
+      filename = Pathname(__FILE__).dirname.join("fixtures/loadme.js").to_s
+      RedJS::Context.new.load(filename).should == "I am Legend"
     end
   end
 
   describe "A Javascript Object Reflected Into Ruby" do
 
     before(:each) do
-      @cxt = Context.new
+      @cxt = RedJS::Context.new
       @o = @cxt.eval("o = new Object(); o")
     end
 
@@ -831,7 +837,7 @@ describe "Ruby Javascript API" do
     end
 
     it "traverses the prototype chain when hash accessing properties from the ruby object" do
-      Context.new do |cxt|
+      RedJS::Context.new do |cxt|
         cxt.eval(<<EOJS)['bar'].should == "baz"
 function Foo() {}
 Foo.prototype.bar = 'baz'
@@ -852,30 +858,21 @@ EOJS
   end
 
   describe "Exception Handling" do
+    
     it "raises javascript exceptions as ruby exceptions" do
       lambda {
-        Context.new.eval('foo')
-      }.should raise_error(JSError)
+        RedJS::Context.new.eval('foo')
+      }.should raise_js_error
     end
 
     it "can handle syntax errors" do
       lambda {
-        Context.eval('does not compiles')
+        RedJS::Context.eval('does not compiles')
       }.should raise_error
     end
 
-    it "translates ruby exceptions into javascript exceptions if they are thrown from code called it javascript" do
-      Context.new do |cxt|
-        cxt['rputs'] = lambda {|this, msg| rputs msg}
-        cxt['boom'] = lambda do |this|
-          raise "BOOM!"
-        end
-        cxt.eval('var msg;try {boom()} catch (e) {msg = e.message};msg').should == 'BOOM!'
-      end
-    end
-
     it "will allow exceptions to pass through multiple languages boundaries (i.e. js -> rb -> js -> rb)" do
-      Context.new do |cxt|
+      RedJS::Context.new do |cxt|
         cxt['one'] = lambda do
           cxt.eval('two()', 'one.js')
         end
@@ -893,30 +890,30 @@ EOJS
         }
       end
     end
-  end
-
-  describe "A Ruby class reflected into JavaScript" do
-    it "will extend instances of the class when properties are added to the corresponding JavaScript constructor's prototype" do
-      Class.new.tap do |cls|
-        Context.new do |cxt|
-          cxt['RubyObject'] = cls
-          cxt.eval('RubyObject.prototype.foo = function() {return "bar"}')
-          cxt['o'] = cls.new
-          cxt.eval('o.foo()').should == "bar"
-        end
+    
+    it "translates ruby exceptions into javascript exceptions if they are thrown from code called it javascript" do
+      RedJS::Context.new do |cxt|
+        cxt['boom'] = lambda { raise "BOOM!" }
+        cxt.eval('( function() { try { boom() } catch (e) { return e.message } } )()').should == 'BOOM!'
       end
     end
-
-    it "will extend instances of subclasses when properties are added to the corresponding JavaScript constructor's prototype" do
-      superclass = Class.new
-      subclass = Class.new(superclass)
-      Context.new do |cxt|
-        cxt['SuperClass'] = superclass
-        cxt['SubClass'] = subclass
-        cxt['o'] = subclass.new
-        cxt.eval('SuperClass.prototype.foo = function() {return "bar"}')
-        cxt.eval('o.foo()').should == "bar"
-      end
+    
+  end
+  
+  private
+  
+  before :all do # check setup
+    unless defined?(RedJS::Context)
+      raise "missing RedJS::Context - please expose your context e.g. `RedJS.const_set :Context, V8::Context`"
+    end
+    unless defined?(RedJS::Error)
+      warn "RedJS::Error not exposed, specs will only check that a generic error is raised, " + 
+           "if you have a JSError please set it e.g. `RedJS.const_set :Error, Rhnino::JSError`"
     end
   end
+  
+  def raise_js_error
+    defined?(RedJS::Error) ? raise_error(RedJS::Error) : raise_error
+  end
+  
 end
