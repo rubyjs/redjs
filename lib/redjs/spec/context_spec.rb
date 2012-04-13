@@ -213,6 +213,18 @@ shared_examples_for "RedJS::Context", :shared => true do
       @cxt['two'] = @class.new
       @cxt.eval('one.foo == two.foo').should be(true)
     end
+
+    it "recognizes functions on objects of the same class being the same" do
+      @class.class_eval do
+        def foo(*args); args; end
+        self
+      end
+      @cxt['one'] = @class.new
+      @cxt['two'] = @class.new
+      @cxt.eval('one.foo === two.foo').should be(true)
+      #TODO: nice to have, but a bit tricky.
+      # @cxt.eval('one.foo === one.constructor.prototype.foo').should be(true)
+    end
     
     it "fails without the correct context passed to an object function" do
       @class.class_eval do
