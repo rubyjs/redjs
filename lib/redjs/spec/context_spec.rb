@@ -936,6 +936,32 @@ EOJS
     
   end
   
+  describe "A Ruby class reflected into JavaScript" do
+    
+    it "will extend instances of the class when properties are added to the corresponding JavaScript constructor's prototype" do
+      klass = Class.new
+      RedJS::Context.new do |cxt|
+        cxt['RubyObject'] = klass
+        cxt.eval('RubyObject.prototype.foo = function() {return "bar"}')
+        cxt['o'] = klass.new
+        cxt.eval('o.foo()').should == "bar"
+      end
+    end
+
+    it "will extend instances of subclasses when properties are added to the corresponding JavaScript constructor's prototype" do
+      superclass = Class.new
+      subclass = Class.new(superclass)
+      RedJS::Context.new do |cxt|
+        cxt['SuperClass'] = superclass
+        cxt['SubClass'] = subclass
+        cxt['o'] = subclass.new
+        cxt.eval('SuperClass.prototype.foo = function() {return "bar"}')
+        cxt.eval('o.foo()').should == "bar"
+      end
+    end
+    
+  end
+  
   private
   
   before :all do # check setup
