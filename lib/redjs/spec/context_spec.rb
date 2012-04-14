@@ -489,6 +489,31 @@ shared_examples_for "RedJS::Context", :shared => true do
         end
       end
 
+      it "does not allow access to methods defined on Object and above" do
+        klass = Class.new do
+          def foo; "FOO"; end
+        end
+        
+        RedJS::Context.new(:with => klass.new) do |cxt|
+          for method in Object.public_instance_methods
+            cxt.eval("this['#{method}']").should be nil
+          end
+        end
+      end
+
+      it "hides methods derived from Object, Kernel, etc..." do
+        evaljs("o.to_s").should be nil # Object
+        evaljs("o.puts").should be nil # Kernel
+      end
+      
+      it "does not allow to call a ruby constructor, unless that constructor has been directly embedded" do
+        klass = Class.new
+        @cxt['obj'] = klass.new
+        lambda {
+          @cxt.eval('new (obj.constructor)()')
+        }.should raise_js_error
+      end
+      
       describe "with an integer index" do
         
         it "allows accessing indexed properties via the []() method" do
