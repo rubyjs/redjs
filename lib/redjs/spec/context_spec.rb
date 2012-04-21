@@ -426,7 +426,6 @@ shared_examples_for "RedJS::Context", :shared => true do
         klass = Class.new do
           def [](name); name; end
           def []=(name, value); name && value; end
-          def bar=(value); value; end
         end
         
         RedJS::Context.new do |cxt|
