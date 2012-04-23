@@ -957,7 +957,20 @@ EOJS
         cxt.eval('( function() { try { boom() } catch (e) { return e.message } } )()').should == 'BOOM!'
       end
     end
-    
+
+    it "allows javascript to catch ScriptError" do
+      RedJS::Context.new do |cxt|
+        cxt['boom'] = lambda { raise ScriptError, "BOOM!" }
+        cxt.eval('( function() { try { boom() } catch (e) { return e.message } } )()').should == 'BOOM!'
+      end
+    end
+
+    it "will not let JavaScript catch other errors such as a SystemExit and fatal" do
+      RedJS::Context.new do |cxt|
+        cxt['boom'] = lambda { raise Exception, "ByE!" }
+        expect {cxt.eval('( function() { try { boom() } catch (e) { return e.message } } )()')}.should raise_error Exception
+      end
+    end
   end
   
   describe "A Ruby class reflected into JavaScript" do
