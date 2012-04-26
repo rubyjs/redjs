@@ -2,7 +2,7 @@
 
 shared_examples_for "RedJS::Context", :shared => true do
 
-  describe "Basic Evaluation" do
+  describe "Basic Evaluation", :compat => '0.1.0' do
 
     before do
       @cxt = RedJS::Context.new
@@ -83,7 +83,7 @@ shared_examples_for "RedJS::Context", :shared => true do
       end
     end
 
-    it "can pass int properties to ruby" do
+    it "can pass int properties to ruby", :compat => '0.2.1'  do
       @cxt.eval("({ 4: '4', 5: 5, '6': true })").tap do |object|
         object[ 4 ].should == '4'
         object['4'].should == '4'
@@ -133,7 +133,7 @@ shared_examples_for "RedJS::Context", :shared => true do
     end
   end
 
-  describe "Calling Ruby Code From Within Javascript" do
+  describe "Calling Ruby Code From Within Javascript", :compat => '0.1.0' do
 
     before(:each) do
       @class = Class.new
@@ -213,7 +213,7 @@ shared_examples_for "RedJS::Context", :shared => true do
       @cxt.eval('obj.foo === obj.foo').should be(true)
     end
     
-    it "recognizes functions on objects of the same class being equal" do
+    it "recognizes functions on objects of the same class being equal", :compat => '0.2.0' do
       @class.class_eval do
         def foo(*args); args; end
         self
@@ -223,7 +223,7 @@ shared_examples_for "RedJS::Context", :shared => true do
       @cxt.eval('one.foo == two.foo').should be(true)
     end
 
-    it "recognizes functions on objects of the same class being the same" do
+    it "recognizes functions on objects of the same class being the same", :compat => '0.2.1' do
       @class.class_eval do
         def foo(*args); args; end
         self
@@ -235,7 +235,7 @@ shared_examples_for "RedJS::Context", :shared => true do
       # @cxt.eval('one.foo === one.constructor.prototype.foo').should be(true)
     end
     
-    it "fails without the correct context passed to an object function" do
+    it "fails without the correct context passed to an object function", :compat => '0.2.0' do
       @class.class_eval do
         def foo(*args); args; end
       end
@@ -259,23 +259,23 @@ shared_examples_for "RedJS::Context", :shared => true do
       @cxt.eval('timesfive(3)').should == 15
     end
 
-    it "reports object's type being object" do
+    it "reports object's type being object", :compat => '0.1.1' do
       @cxt.eval('typeof( o )').should == 'object'
     end
     
-    it "reports object method type as function" do
+    it "reports object method type as function", :compat => '0.1.1' do
       @class.class_eval do
         def foo(*args); args; end
       end
       @cxt.eval('typeof o.foo ').should == 'function'
     end
     
-    it "reports wrapped class as of type function" do
+    it "reports wrapped class as of type function", :compat => '0.1.1' do
       @cxt['RObject'] = Object
       @cxt.eval('typeof(RObject)').should == 'function'
     end
     
-    it "truncates lambda arguments passed in to match the arity of the function" do
+    it "truncates lambda arguments passed in to match the arity of the function", :compat => '0.4.2' do
       @cxt['testing'] = lambda { |arg| arg }
       expect { 
         @cxt.eval('testing(1,2,3)')
@@ -287,7 +287,7 @@ shared_examples_for "RedJS::Context", :shared => true do
       }.should_not raise_error
     end
     
-    it "truncates method arguments passed in to match the arity of the function" do
+    it "truncates method arguments passed in to match the arity of the function", :compat => '0.4.3' do
       @instance.instance_eval do
         def foo(arg); arg; end
         def bar(*args); args; end
@@ -301,7 +301,7 @@ shared_examples_for "RedJS::Context", :shared => true do
       }.should_not raise_error
     end
     
-    it "fills in missing arguments with nils to match the arity of the function" do
+    it "fills in missing arguments with nils to match the arity of the function", :compat => '0.4.3' do
       @instance.instance_eval do
         def foo(a1, a2, a3); [a1, a2, a3]; end
       end
@@ -375,7 +375,7 @@ shared_examples_for "RedJS::Context", :shared => true do
         end
       end
 
-      it "allows a ruby object which intercepts property access to take a pass on intercepting the property" do
+      it "allows a ruby object which intercepts property access to take a pass on intercepting the property", :compat => '0.4.0' do
         klass = Class.new do
           def initialize
             @attrs = {}
@@ -399,7 +399,7 @@ shared_examples_for "RedJS::Context", :shared => true do
         end
       end
 
-      it "allows a ruby object to take a pass on intercepting an indexed property" do
+      it "allows a ruby object to take a pass on intercepting an indexed property", :compat => '0.4.0' do
         klass = Class.new do
           def initialize
             @arr = []
@@ -422,7 +422,7 @@ shared_examples_for "RedJS::Context", :shared => true do
         end
       end
       
-      it "does not make the [] and []= methods visible or enumerable by default" do
+      it "does not make the [] and []= methods visible or enumerable by default", :compat => '0.4.1' do
         klass = Class.new do
           def [](name); name; end
           def []=(name, value); name && value; end
@@ -629,7 +629,7 @@ shared_examples_for "RedJS::Context", :shared => true do
 
   end
 
-  describe "Calling JavaScript Code From Within Ruby" do
+  describe "Calling JavaScript Code From Within Ruby", :compat => '0.1.0' do
 
     before(:each) do
       @cxt = RedJS::Context.new
@@ -646,7 +646,7 @@ shared_examples_for "RedJS::Context", :shared => true do
       times.methodcall(obj, 5).should == 25
     end
 
-    it "unwraps objects that are backed by javascript objects to pass their native equivalents" do |cxt|
+    it "unwraps objects that are backed by javascript objects to pass their native equivalents" do
       @cxt.eval('obj = {foo: "bar"}')
       f = @cxt.eval('(function() {return this == obj})')
       f.methodcall(@cxt['obj']).should be(true)
@@ -689,7 +689,7 @@ shared_examples_for "RedJS::Context", :shared => true do
     end
   end
 
-  describe "Setting up the Host Environment" do
+  describe "Setting up the Host Environment", :compat => '0.1.0' do
     
     before(:each) do
       @cxt = RedJS::Context.new
@@ -770,12 +770,12 @@ shared_examples_for "RedJS::Context", :shared => true do
       @cxt.eval('new RubyObject() instanceof Object').should be(true)
     end
 
-    it "reports constructor function as being an instance of Function" do
+    it "reports constructor function as being an instance of Function", :compat => '0.1.1' do
       @cxt['RubyObject'] = Object
       @cxt.eval('RubyObject instanceof Function').should be(true)
     end
    
-    it "respects ruby's inheritance chain with the instanceof operator" do
+    it "respects ruby's inheritance chain with the instanceof operator", :compat => '0.1.1' do
       @cxt['Class1'] = klass1 = Class.new(Object)
       @cxt['Class2'] = klass2 = Class.new(klass1)
       @cxt['obj1'] = klass1.new
@@ -813,7 +813,7 @@ shared_examples_for "RedJS::Context", :shared => true do
 
   end
 
-  describe "Loading javascript source into the interpreter" do
+  describe "Loading javascript source into the interpreter", :compat => '0.1.0' do
 
     it "can take an IO object in the eval method instead of a string" do
       source = StringIO.new(<<-EOJS)
@@ -842,7 +842,7 @@ shared_examples_for "RedJS::Context", :shared => true do
     end
   end
 
-  describe "A Javascript Object Reflected Into Ruby" do
+  describe "A Javascript Object Reflected Into Ruby", :compat => '0.1.0' do
 
     before(:each) do
       @cxt = RedJS::Context.new
@@ -892,7 +892,7 @@ EOJS
     end
   end
 
-  describe "Exception Handling" do
+  describe "Exception Handling", :compat => '0.1.0' do
     
     it "raises javascript exceptions as ruby exceptions" do
       lambda {
@@ -926,21 +926,21 @@ EOJS
       end
     end
     
-    it "translates ruby exceptions into javascript exceptions if they are thrown from code called it javascript" do
+    it "translates ruby exceptions into javascript exceptions if they are thrown from code called it javascript", :compat => '0.3.0' do
       RedJS::Context.new do |cxt|
         cxt['boom'] = lambda { raise "BOOM!" }
         cxt.eval('( function() { try { boom() } catch (e) { return e.message } } )()').should == 'BOOM!'
       end
     end
 
-    it "allows javascript to catch ScriptError" do
+    it "allows javascript to catch ScriptError", :compat => '0.4.4' do
       RedJS::Context.new do |cxt|
         cxt['boom'] = lambda { raise ScriptError, "BOOM!" }
         cxt.eval('( function() { try { boom() } catch (e) { return e.message } } )()').should == 'BOOM!'
       end
     end
 
-    it "will not let JavaScript catch other errors such as a SystemExit and fatal" do
+    it "will not let JavaScript catch other errors such as a SystemExit and fatal", :compat => '0.4.4' do
       RedJS::Context.new do |cxt|
         cxt['boom'] = lambda { raise Exception, "ByE!" }
         expect {cxt.eval('( function() { try { boom() } catch (e) { return e.message } } )()')}.should raise_error Exception
