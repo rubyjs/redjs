@@ -41,6 +41,22 @@ describe MyJS::Context do
 end
 ```
 
+### Filter particular specs
+
+In case you need to conform with specs defined in a higher version number but 
+can't pass specs from a previous version, you might (temporarily) exclude 'em :
+
+```ruby
+# Gemfile :
+gem 'redjs', :branch => "0.6", 
+    :git => 'git://github.com/cowboyd/redjs.git'
+
+# spec_helper.rb :
+RSpec.configure do |config|
+  config.filter_run_excluding :compat => /(0.4.4)|(0.5.0)/
+end
+```
+
 ## API Requirements
 
 ### RedJS::Context
