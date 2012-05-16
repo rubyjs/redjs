@@ -971,6 +971,29 @@ EOJS
         expect {cxt.eval('( function() { try { boom() } catch (e) { return e.message } } )()')}.should raise_error Exception
       end
     end
+    
+    it "propagates javascript thrown values into the ruby side", :compat => '0.4.5' do
+      RedJS::Context.new do |cxt|
+        begin
+          cxt.eval('throw 42')
+        rescue => e
+          e.should respond_to(:value)
+          e.value.should == 42
+        else
+          fail "not raised !"
+        end
+        begin
+          cxt.eval("throw { foo: 'bar' }")
+        rescue => e
+          e.should respond_to(:value)
+          e.value.should respond_to(:'[]')
+          e.value['foo'].should == 'bar'
+        else
+          fail "not raised !"
+        end
+      end
+    end
+    
   end
   
   describe "A Ruby class reflected into JavaScript", :compat => '0.6.0' do
