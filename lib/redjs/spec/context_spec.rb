@@ -968,6 +968,30 @@ EOJS
         end
       end
     end
+
+    it "propagates a javascript thrown error from a function", :compat => '0.4.6' do
+      context = RedJS::Context.new
+      context.eval 'function bar() { throw new Error("bar"); }'
+      begin
+        context['bar'].call
+      rescue Exception => e
+        e.should be_a defined?(RedJS::Error) ? RedJS::Error : StandardError
+      else
+        fail "function bar() not raised !"
+      end
+    end
+    
+    it "propagates a javascript thrown error from a constructor", :compat => '0.4.6' do
+      context = RedJS::Context.new
+      context.eval 'Foo = function() { throw new Error("Foo"); };'
+      begin
+        context['Foo'].new
+      rescue Exception => e
+        e.should be_a defined?(RedJS::Error) ? RedJS::Error : StandardError
+      else
+        fail "not raised !"
+      end
+    end
     
   end
   
