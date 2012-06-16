@@ -820,22 +820,6 @@ shared_examples_for "RedJS::Context", :shared => true do
       end
       @cxt.eval('new RubyClass()').should be_definitely_a_product_of_this_one_off_class
     end
-
-    it "extends object to allow for the arbitrary execution of javascript with any object as the scope" do
-      Class.new.class_eval do
-
-        def initialize
-          @lhs = 5
-        end
-
-        def timesfive(rhs)
-          @lhs * rhs
-        end
-
-        new.eval_js("timesfive(6)").should == 30
-      end
-    end
-
   end
 
   describe "Loading javascript source into the interpreter", :compat => '0.1.0' do
