@@ -277,12 +277,12 @@ shared_examples_for "RedJS::Context", :shared => true do
 
     it "truncates lambda arguments passed in to match the arity of the function", :compat => '0.4.2' do
       @cxt['testing'] = lambda { |arg| arg }
-      expect {
+      lambda {
         @cxt.eval('testing(1,2,3)')
       }.should_not raise_error
 
       @cxt['testing'] = lambda { }
-      expect {
+      lambda {
         @cxt.eval('testing(1,2,3)')
       }.should_not raise_error
     end
@@ -293,10 +293,10 @@ shared_examples_for "RedJS::Context", :shared => true do
         def bar(*args); args; end
       end
 
-      expect {
+      lambda {
         @cxt.eval('o.foo(1,2,3)').should == 1
       }.should_not raise_error
-      expect {
+      lambda {
         @cxt.eval('o.bar(1,2,3)').to_a.should == [ 1, 2, 3 ]
       }.should_not raise_error
     end
@@ -305,8 +305,8 @@ shared_examples_for "RedJS::Context", :shared => true do
       @instance.instance_eval do
         def foo(a1, a2, a3); [a1, a2, a3]; end
       end
-
-      expect {
+      
+      lambda {
         @cxt.eval('o.foo(1)').to_a.should == [ 1, nil, nil ]
         @cxt.eval('o.foo()').to_a.should == [ nil, nil, nil ]
       }.should_not raise_error
