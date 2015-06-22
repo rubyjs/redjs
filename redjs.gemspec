@@ -11,7 +11,7 @@ Gem::Specification.new do |s|
   s.description = %q{An interface compatibility suite for Ruby embeddings of Javascript.}
   s.email = %q{cowboyd@thefrontside.net}
   
-  s.homepage = %q{http://github.com/cowboyd/redjs}
+  s.homepage = %q{https://github.com/cowboyd/redjs}
   s.require_paths = ["lib"]
   
   s.extra_rdoc_files = ["README.md"]
